@@ -1,0 +1,3 @@
+[submodule "MAVeric"]
+	path = MAVeric
+	url = git@github.com:Peyje/MAVeric.git
