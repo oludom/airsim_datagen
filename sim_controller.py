@@ -15,10 +15,12 @@ All AirSim API uses NED coordinate system, i.e., +X is North, +Y is East and +Z 
 import airsim
 import numpy as np
 import pprint
+import curses
 
 import os
 import time
 from math import *
+import time
 
 import cv2
 
@@ -26,6 +28,9 @@ from numpy.random import default_rng
 
 # import MAVeric polynomial trajectory planner
 import MAVeric.trajectory_planner as maveric
+
+# use custom PID controller
+from pid import PID
 
 #----------------- Lab Sim setup configuration --------------------------------
 GATE_BASE_NAME = "BP_AirLab2m1Gate_"
@@ -45,6 +50,11 @@ class sim_controller:
         INIT VALUES 
         '''
 
+        # frame rate
+        self.framerate = 30 # fps
+        self.timestep = 1./self.framerate # hz
+        self.roundtime = 15 # seconds
+
         # append run number to base name
         self.DATASET_NAME = DATASET_BASENAME + "0"
         self.DATASET_PATH = DATASET_BASEPATH + "/" + self.DATASET_NAME
@@ -61,7 +71,9 @@ class sim_controller:
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
         # shortcut
-        self.c = self.client
+        self.c = curses.initscr()
+        curses.noecho()
+        curses.cbreak()
 
 
         '''
@@ -79,20 +91,29 @@ class sim_controller:
     # get current position of UAV from simulation
     # returns [x, y, z, qw, qx, qy, qz]
     def getPositionUAV(self):
-        dronePose = self.c.simGetVehiclePose()
+        dronePose = self.client.simGetVehiclePose()
         retVal = np.array([dronePose.position.x_val, dronePose.position.y_val, dronePose.position.z_val, dronePose.orientation.w_val, dronePose.orientation.x_val, dronePose.orientation.y_val, dronePose.orientation.z_val])
         return retVal
+    # get current position of UAV from simulation
+    # returns airsim.Pose()
+    def getPositionAirsimUAV(self):
+        return self.client.simGetVehiclePose()
+
+    def getState(self):
+        pos = self.getPositionAirsimUAV()
+        _, _, yaw = airsim.to_eularian_angles(pos.orientation)
+        return [pos.position.x_val, pos.position.y_val, pos.position.z_val, yaw]
 
     # get position of gate with index idx
     # returns [x, y, z, qw, qx, qy, qz]
     def getPositionGate(self, idx):
-        gatePose = self.c.simGetObjectPose(GATE_BASE_NAME + str(idx))
+        gatePose = self.client.simGetObjectPose(GATE_BASE_NAME + str(idx))
         retVal = np.array([gatePose.position.x_val, gatePose.position.y_val, gatePose.position.z_val, gatePose.orientation.w_val, gatePose.orientation.x_val, gatePose.orientation.y_val, gatePose.orientation.z_val])
         return retVal
     # get position of gate with index idx
     # returns airsim.Pose()
     def getPositionAirsimGate(self, idx):
-        return self.c.simGetObjectPose(GATE_BASE_NAME + str(idx))
+        return self.client.simGetObjectPose(GATE_BASE_NAME + str(idx))
 
     # set position of gate to pos with yaw as direction to face
     # idx: gate index
@@ -107,7 +128,7 @@ class sim_controller:
 
     # capture and save three images, left and right rgb, depth
     def captureAndSaveImages(self):
-        res = self.c.simGetImages(
+        res = self.client.simGetImages(
             [
                 airsim.ImageRequest("front_left", airsim.ImageType.Scene),
                 airsim.ImageRequest("front_right", airsim.ImageType.Scene),
@@ -127,9 +148,19 @@ class sim_controller:
 
     # gets current position of gates and generates a trajectory through those points
     # returns maveric.Waypoint objects, trajectory as list of parameters for polynomials (see convertTrajectoryToWaypoints())
-    def generateTrajectoryFromCurrentGatePositions(self):
+    def generateTrajectoryFromCurrentGatePositions(self, timestep=1):
         
         waypoints = []
+
+        # uav current position is first waypoint
+        uavpos = self.getPositionUAV()
+        orientation = self.getPositionAirsimUAV().orientation
+        # convert to xyz and yaw
+        _, _, yaw = airsim.to_eularian_angles(orientation)
+        uavwp = [uavpos[0], uavpos[1], uavpos[2], yaw]
+        # add waypoint
+        waypoints.append(uavwp)
+
 
         # get current gate positions
         for i in range(1,5):
@@ -142,11 +173,14 @@ class sim_controller:
             # add waypoint
             waypoints.append(wp)
 
+        # add uavwp again - starting point as endpoint
+        waypoints.append(uavwp)
+
         # call maveric to get trajectory
-        return maveric.planner(waypoints)
+        return maveric.planner(waypoints, timestep=timestep)
 
     # convert waypoints, trajectory from generateTrajectoryFromCurrentGatePositions() to airsim.Vector3r list and [x,y,z,yaw,timestamp]
-    def convertTrajectoryToWaypoints(self, waypoints, trajectory, evaltime=20):
+    def convertTrajectoryToWaypoints(self, waypoints, trajectory, evaltime=10):
         out = []
         outComplete = []
 
@@ -208,15 +242,15 @@ class sim_controller:
         path, pathComplete = self.convertTrajectoryToWaypoints(timed_waypoints, trajectory)
         # print(path)
         # moveOnPathAsync(self, path, velocity, timeout_sec = 3e+38, drivetrain = DrivetrainType.MaxDegreeOfFreedom, yaw_mode = YawMode(), lookahead = -1, adaptive_lookahead = 1, vehicle_name = ''):
-        # self.c.moveOnPathAsync(path, 2, timeout_sec=3e+38, yaw_mode=airsim.YawMode(False, 100.0)).join()
+        # self.client.moveOnPathAsync(path, 2, timeout_sec=3e+38, yaw_mode=airsim.YawMode(False, 100.0)).join()
 
 
 
         # draw trajectory
         # simPlotPoints(self, points, color_rgba=[1.0, 0.0, 0.0, 1.0], size = 10.0, duration = -1.0, is_persistent = False):
-        self.c.simPlotPoints(path, duration=60)
+        self.client.simPlotPoints(path, duration=60)
 
-        # dronePose = self.c.simGetVehiclePose()
+        # dronePose = self.client.simGetVehiclePose()
         # qyaw = airsim.to_quaternion(0, 0, -pathComplete[0][3])
         # dronePose.position.x_val = pathComplete[0][0]
         # dronePose.position.y_val = pathComplete[0][1]
@@ -225,10 +259,10 @@ class sim_controller:
         # dronePose.orientation.x_val = qyaw.x_val
         # dronePose.orientation.y_val = qyaw.y_val
         # dronePose.orientation.z_val = qyaw.z_val
-        # self.c.simSetVehiclePose(dronePose, True)
+        # self.client.simSetVehiclePose(dronePose, True)
 
         for i, point in enumerate(pathComplete):
-            dronePose = self.c.simGetVehiclePose()
+            dronePose = self.client.simGetVehiclePose()
             qyaw = airsim.to_quaternion(0, 0, -point[3])
             dronePose.position.x_val = point[0]
             dronePose.position.y_val = point[1]
@@ -237,10 +271,10 @@ class sim_controller:
             dronePose.orientation.x_val = qyaw.x_val
             dronePose.orientation.y_val = qyaw.y_val
             dronePose.orientation.z_val = qyaw.z_val
-            self.c.simSetVehiclePose(dronePose, True)
+            self.client.simSetVehiclePose(dronePose, True)
             p = [point[0], point[1], point[2], qyaw.w_val, qyaw.x_val, qyaw.y_val, qyaw.z_val]
             self.printPose(p)
-            # self.c.simSetObjectPose(pose, True)
+            # self.client.simSetObjectPose(pose, True)
             time.sleep(0.1)
 
     # move UAV around a bit to show that api control is active and working
@@ -277,6 +311,110 @@ class sim_controller:
         cp = self.getAndPrintCurrentPosition()
 
         
+    def gateMission(self):
+
+        # reset sim
+        self.reset()
+
+        # takeoff
+        self.client.takeoffAsync().join()
+
+        # init pid controller for velocity control
+        ctrl = PID()
+
+        firstGoal = self.getState()
+        # firstGoal[3] = 180
+        ctrl.setGoal(firstGoal)
+
+        # get trajectory
+        timed_waypoints, trajectory = self.generateTrajectoryFromCurrentGatePositions(timestep=1)
+
+        # print("follow generated path from gates")
+
+        path, pathComplete = self.convertTrajectoryToWaypoints(timed_waypoints, trajectory, evaltime=self.roundtime)
+
+        # show trajectory
+        self.client.simPlotPoints(path, color_rgba=[1.0, 0.0, 0.0, .2], size = 10.0, duration = -1.0, is_persistent = True)
+
+        # for wp in pathComplete:
+
+        lastTs = time.time()
+
+        cwpindex = 0
+        timePerWP = float(self.roundtime) / len(pathComplete) 
+
+        lastWaypointTs = time.time()
+
+        # controll loop
+        while True:
+
+            # get and plot current waypoint
+            wp = pathComplete[cwpindex]
+            # convert radians to degrees
+            # wp[3] = 0
+            self.client.simPlotPoints([airsim.Vector3r(wp[0], wp[1], wp[2])], color_rgba=[0.0, 0.0, 1.0, 1.0], size = 10.0, duration = self.timestep, is_persistent = False)
+
+            # get current time and time delta
+            tn = time.time()
+            # time delta
+            dt = tn - lastTs
+
+            # wait remaining time until time step has passed
+            remainingTime = (self.timestep) - dt
+            if remainingTime > 0:
+                time.sleep(remainingTime)
+
+            # get current time again
+            tn = time.time()
+            # new time delta
+            dt = tn - lastTs
+
+            # calculate actual frequency
+            hz = 1./float(dt)
+
+            self.c.addstr(0,0, "following generated path from gates...")
+            self.c.addstr(2,0, f"frame rate: {hz}")
+
+            # get current state
+            cstate = self.getState()
+            # inform pid controller about state
+            ctrl.setState(cstate)
+
+
+            ctrl.setGoal(wp[:4])
+            # update pid controller
+            ctrl.update()
+            self.c.addstr(3,0, ctrl.errorOutput)
+            # get current pid output´
+            vel, yaw = ctrl.getVelocityYaw()
+
+            '''
+            Args:
+                vx (float): desired velocity in world (NED) X axis
+                vy (float): desired velocity in world (NED) Y axis
+                vz (float): desired velocity in world (NED) Z axis
+                duration (float): Desired amount of time (seconds), to send this command for
+                drivetrain (DrivetrainType, optional):
+                yaw_mode (YawMode, optional):
+                vehicle_name (str, optional): Name of the multirotor to send this command to
+            '''
+            self.client.moveByVelocityAsync(float(vel[0]), float(vel[1]), float(vel[2]), duration=float(self.timestep), yaw_mode=airsim.YawMode(False, degrees(-yaw)))
+
+            # debug output
+            self.c.addstr(5,0,f"yaw state: {cstate[3]}")
+            self.c.addstr(6,0,f"yaw goal: {wp[3]}")
+            self.c.addstr(7,0,f"7")
+            self.c.addstr(8,0,f"8")
+
+            self.c.refresh()
+            lastTs = tn
+
+            # increase current waypoint index if time per waypoint passed and if there are more waypoints available in path
+            if tn - lastWaypointTs > timePerWP and len(pathComplete) > (cwpindex+1):
+                cwpindex = cwpindex + 1
+                lastWaypointTs = tn
+
+
 
 
 
@@ -284,10 +422,16 @@ class sim_controller:
     close all opened files here
     '''
     def close(self):
+        curses.nocbreak()
+        # curses.stdscr.keypad(False)
+        curses.echo()
+        curses.endwin()
+        self.client.simFlushPersistentMarkers()
         return
 
 
 
 import contextlib
 with contextlib.closing(sim_controller()) as sc:
-    sc.move()
+    sc.gateMission()
+
