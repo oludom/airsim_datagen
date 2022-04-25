@@ -5,43 +5,56 @@ import numpy as np
 from math import *
 
 '''
-custom pid controller
+velocity pid controller
+outputs a velocity command in world frame, 
+based on input x, y, z, and yaw in world frame
 
 '''
 
 
-class PID:
+class VelocityPID:
 
-    def __init__(self):
+    '''
+    pid controller
+    kp: np.array 3, p gain for x, y, z
+    ki: np.array 3, i gain for x, y, z
+    kd: np.array 3, d gain for x, y, z
+    yg: float, yaw gain
+    dthresh: float, distance threshold
+    athresh: float, angle threshold
 
+    '''
+    def __init__(self, kp=np.array([0., 0., 0.]), ki=np.array([0., 0., 0.]), kd=np.array([0., 0., 0.]), yg=0., dthresh=.1, athresh=.1):
 
+        # state
         self.x = 0
         self.y = 0
         self.z = 0
         self.yaw = 0
 
-        
+        # previous
         self.previous_time = time.time()
         self.previous_distance_error = np.array([0, 0, 0])
         self.previous_angle_error = np.array([0, 0, 0])
-        self.integral = np.array([0, 0, 0])
+        self.previous_integral_error = np.array([0, 0, 0])
 
-        # Default parameters: CHANGE HERE
+        # Default state
         self.x_goal = 0
         self.y_goal = 0
         self.z_goal = 0
         self.yaw_goal = 0
-        
-        self.Kp = np.array([0.1, 0.1, 0.1])
-        self.Ki = np.array([0.2, 0.2, 0.2])
-        self.Kd = np.array([0.05, 0.05, 0.03])
-        self.yaw_gain = 0.2
 
-        self.distance_threshold = 0.01
-        self.angle_threshold = 0.1
+        # gains
+        self.Kp = kp
+        self.Ki = ki
+        self.Kd = kd
+        self.yaw_gain = yg
+
+        self.distance_threshold = dthresh
+        self.angle_threshold = athresh
 
         # output values
-        self.velocity = np.array([0,0,0])
+        self.velocity_out = np.array([0,0,0])
         self.yaw_out = 0
 
         # error publisher
@@ -65,13 +78,13 @@ class PID:
 
     # returns output of pid controller
     def getVelocityYaw(self):
-        return (self.velocity, self.yaw_out)
+        return (self.velocity_out, self.yaw_out)
 
 
     def update(self):
 
         previous_distance_error = self.previous_distance_error
-        distance_integral = self.integral
+        distance_integral = self.previous_integral_error
 
         # Retrieve the UAV's state
         x = self.x
@@ -123,7 +136,7 @@ class PID:
             # calculate into body frame
             # vel_body = Rbv.dot(np.transpose(vel_world))
             # self.velocity = vel_body
-            self.velocity = vel_world
+            self.velocity_out = vel_world
 
 
         # else:
@@ -139,27 +152,3 @@ class PID:
             self.yaw_out = yaw_rate_world
         else: 
             self.yaw_out = 0
-
-
-
-# def quaternion_to_euler(x, y, z, w):
-
-#         import math
-#         t0 = +2.0 * (w * x + y * z)
-#         t1 = +1.0 - 2.0 * (x * x + y * y)
-#         X = math.degrees(math.atan2(t0, t1))
-
-#         t2 = +2.0 * (w * y - z * x)
-#         t2 = +1.0 if t2 > +1.0 else t2
-#         t2 = -1.0 if t2 < -1.0 else t2
-#         Y = math.degrees(math.asin(t2))
-
-#         t3 = +2.0 * (w * z + x * y)
-#         t4 = +1.0 - 2.0 * (y * y + z * z)
-#         Z = math.degrees(math.atan2(t3, t4))
-
-#         X = math.atan2(t0, t1)
-#         Y = math.asin(t2)
-#         Z = math.atan2(t3, t4)
-
-#         return X, Y, Z
