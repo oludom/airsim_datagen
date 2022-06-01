@@ -20,40 +20,36 @@ import os
 import time
 from math import *
 import time
+import json
+from copy import deepcopy
 
 import cv2
 
-from numpy.random import default_rng
-
-# import MAVeric polynomial trajectory planner
 import MAVeric.trajectory_planner as maveric
-
-#----------------- Lab Sim setup configuration --------------------------------
-GATE_BASE_NAME = "BP_AirLab2m1Gate_"
-DATASET_BASENAME = "X4Gates_Circle_"
-DATASET_BASEPATH = "/home/kristoffer/dev/dataset"
 
 
 '''
-controller, that generates training data for imitation learning with AirSim in the Skejby Lab environment
-sim_controller.move() contains main functionality
+
 '''
 class AirSimController:
 
-    def __init__(self):
+    def __init__(self, raceTrackName):
 
         ''' 
         INIT VALUES 
         '''
 
-        # frame rate
-        self.framerate = 30 # fps
-        self.timestep = 1./self.framerate # hz
-        self.roundtime = 40 # seconds
+        # configuration file
+        self.configFile = open('config.json', "r")
+
+        self.config = {}
+        self.loadConfig(self.configFile)
 
         # append run number to base name
-        self.DATASET_NAME = DATASET_BASENAME + "0"
-        self.DATASET_PATH = DATASET_BASEPATH + "/" + self.DATASET_NAME
+        self.DATASET_NAME = self.config.dataset_basename
+        self.DATASET_PATH_SUPER = self.config.dataset_basepath + "/" + self.DATASET_NAME
+        self.DATASET_PATH = self.DATASET_PATH_SUPER + "/" + raceTrackName
+        self.DATASET_PATH_FILE = self.DATASET_PATH + "/data.json"
         self.DATASET_PATH_LEFT = self.DATASET_PATH + "/image_left"
         self.DATASET_PATH_RIGHT = self.DATASET_PATH + "/image_right"
         self.DATASET_PATH_DEPTH = self.DATASET_PATH + "/image_depth"
@@ -67,12 +63,11 @@ class AirSimController:
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
 
-
-
         '''
         CREATE DATASET FOLDERS
         '''
         # root path of the data set to be created
+        self.createFolder(self.DATASET_PATH_SUPER)
         self.createFolder(self.DATASET_PATH)
         # left images will be saved here
         self.createFolder(self.DATASET_PATH_LEFT)
@@ -80,6 +75,48 @@ class AirSimController:
         self.createFolder(self.DATASET_PATH_RIGHT)
         # depth images will be saved here
         self.createFolder(self.DATASET_PATH_DEPTH)
+
+        '''
+        CREATE DATASET OUTPUT FILE
+        '''
+        self.outputFile = open(self.DATASET_PATH_FILE, "w")
+        print('{\n"data": [', file=self.outputFile)
+
+    # save config file to data set folder
+    # gates: np.array of shape [x, y, z, yaw]
+    # data: dict - key value
+    def saveConfigToDataset(self, gates, data={}):
+        dconfigfile = open(self.DATASET_PATH + "/config.json", "w")
+        self.configFile.seek(0)
+        dconfig = json.load(self.configFile)
+        dconfig['gates']['poses'] = gates.tolist()
+        dconfig['gates']['number_configurations'] = 1
+
+        for key, value in data.items():
+            dconfig[key] = value
+
+        json.dump(dconfig, dconfigfile, indent="  ")
+        dconfigfile.close()
+
+
+    def loadConfig(self, configFile):
+        class ConfigLoader:
+            def __init__(self, **data):
+                self.__dict__.update(data)
+        data = json.load(configFile)
+        self.config = ConfigLoader(**data)
+
+    '''
+    this function should be called at end of lifetime of this object (see contextlib)
+    close all opened files here
+    and reset simulation
+    '''
+    def close(self):
+        self.configFile.close()
+        # ending of json file
+        print(']\n}', file=self.outputFile)
+        self.outputFile.close()
+
 
     # get current position of UAV from simulation
     # returns [x, y, z, qw, qx, qy, qz]
@@ -92,6 +129,8 @@ class AirSimController:
     def getPositionAirsimUAV(self):
         return self.client.simGetVehiclePose()
 
+    # get current state of UAV
+    # returns [x, y, z, yaw]
     def getState(self):
         pos = self.getPositionAirsimUAV()
         _, _, yaw = airsim.to_eularian_angles(pos.orientation)
@@ -100,50 +139,118 @@ class AirSimController:
     # get position of gate with index idx
     # returns [x, y, z, qw, qx, qy, qz]
     def getPositionGate(self, idx):
-        gatePose = self.client.simGetObjectPose(GATE_BASE_NAME + str(idx))
+        gatePose = self.client.simGetObjectPose(self.config.gate_basename + str(idx))
         retVal = np.array([gatePose.position.x_val, gatePose.position.y_val, gatePose.position.z_val, gatePose.orientation.w_val, gatePose.orientation.x_val, gatePose.orientation.y_val, gatePose.orientation.z_val])
         return retVal
     # get position of gate with index idx
     # returns airsim.Pose()
     def getPositionAirsimGate(self, idx):
-        return self.client.simGetObjectPose(GATE_BASE_NAME + str(idx))
+        return self.client.simGetObjectPose(self.config.gate_basename + str(idx))
 
     # set position of gate to pos with yaw as direction to face
     # idx: gate index
     # pos: new position of gate
-    # yaw: direction, rad/deg?
-    def setPositionGate(self, idx, pos, yaw):
-        pose = airsim.Pose(airsim.Vector3r(pos[0], pos[1], pos[2]), airsim.to_quaternion(0, 0, -yaw))
+    # yaw: direction, deg
+    def setPositionGate(self, idx, pos, yaw=None):
+        if yaw == None:  # assume pos[3] is yaw
+            yaw = pos[3]
+        pose = airsim.Pose(airsim.Vector3r(pos[0], pos[1], pos[2]), airsim.to_quaternion(0, 0, radians(yaw)))
         if idx < 1 or idx > 4:
             print("setPositionGate: error gate idx not found.")
             return
-        self.client.simSetObjectPose(GATE_BASE_NAME + str(idx), pose, True)
+        self.client.simSetObjectPose(self.config.gate_basename + str(idx), pose, True)
+
+
+    # ImuData: type ImuData (airsim sensor message)
+    # returns time stamp, dict of ImuData
+    def convertImuToDict(self, ImuData):
+        imu = {}
+        imu['angular_velocity'] = {
+            "x": ImuData.angular_velocity.x_val,
+            "y": ImuData.angular_velocity.y_val,
+            "z": ImuData.angular_velocity.z_val
+        }
+        imu['linear_acceleration'] = {
+            "x": ImuData.linear_acceleration.x_val,
+            "y": ImuData.linear_acceleration.y_val,
+            "z": ImuData.linear_acceleration.z_val
+        }
+        imu['orientation'] = {
+            "x": ImuData.orientation.x_val,
+            "y": ImuData.orientation.y_val,
+            "z": ImuData.orientation.z_val,
+            "w": ImuData.orientation.w_val
+        }
+        return (ImuData.time_stamp, imu)
+
 
     # capture and save three images, left and right rgb, depth
-    def captureAndSaveImages(self):
+    # wpidx: index of current waypoint, that is targeted by controller
+    # idx: image index, used for naming the images, should count up to prevent overwriting existing images
+    def captureAndSaveImages(self, wpidx, idx=0):
+
+        # current frame name
+        cfname = "image" + str(idx)
+
+        # get images from AirSim API
         res = self.client.simGetImages(
             [
                 airsim.ImageRequest("front_left", airsim.ImageType.Scene),
                 airsim.ImageRequest("front_right", airsim.ImageType.Scene),
-                airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanner, True)
+                airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
             ]
         )
         left = res[0]
         right = res[1]
         depth = res[2]
 
-        # TODO: this is hardcoded, should be changed.
-
         # save left image
-        airsim.write_file(self.DATASET_PATH_LEFT + "/testimg.png", left.image_data_uint8)
+        airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)
         # save right image
-        airsim.write_file(self.DATASET_PATH_RIGHT + "/testimg.png", right.image_data_uint8)
+        airsim.write_file(self.DATASET_PATH_RIGHT + f"/{cfname}.png", right.image_data_uint8)
         # save depth as portable float map
-        airsim.write_pfm(self.DATASET_PATH_DEPTH + "/testimg.pfm", airsim.get_pfm_array(depth))
+        airsim.write_pfm(self.DATASET_PATH_DEPTH + f"/{cfname}.pfm", airsim.get_pfm_array(depth))
+
+        # get imu data
+        imuData = self.client.getImuData()
+        ts, imu = self.convertImuToDict(imuData)
+
+        # get UAV pose
+        pos = list(self.getPositionUAV())
+        
+        # write entry to output file
+        entry = {
+            "image_name": cfname,
+            "time_stamp": ts,
+            "waypoint_index": wpidx,
+            "pose": pos,
+            "imu": imu
+        }
+        print(f"{json.dumps(entry, indent=1)},", file=self.outputFile)
+
+
+    # create two waypoints with offset from gate center position, with the same yaw rotation as gate
+    # can be used to influence trajectory generation to make drone go through the gates in a more straight line
+    def create2WaypointsOffset(self, position, yaw, offset):
+        # offset vector
+        ov1 = np.array([0,offset,0])
+        ov2 = np.array([0,offset,0])
+        # rotation matrix z-axis
+        r1 = np.array([[cos(yaw), sin(yaw), 0], [-1*sin(yaw), cos(yaw), 0], [0, 0, 1]])
+        yaw += pi
+        r2 = np.array([[cos(yaw), sin(yaw), 0], [-1*sin(yaw), cos(yaw), 0], [0, 0, 1]])
+        rot1 = r1.dot(np.transpose(ov1))
+        rot2 = r2.dot(np.transpose(ov2))
+        pos1 = deepcopy(position) + rot1
+        pos2 = deepcopy(position) + rot2
+        return (pos1, pos2)
 
     # gets current position of gates and generates a trajectory through those points
-    # returns maveric.Waypoint objects, trajectory as list of parameters for polynomials (see convertTrajectoryToWaypoints())
-    def generateTrajectoryFromCurrentGatePositions(self, timestep=1):
+    # if traj is true:
+    #   returns maveric.Waypoint objects, trajectory as list of parameters for polynomials (see convertTrajectoryToWaypoints())
+    # else: 
+    #   returns waypoints as list of [x, y, z, yaw], yaw in degrees
+    def generateTrajectoryFromCurrentGatePositions(self, timestep=1, traj=True):
         
         waypoints = []
 
@@ -152,51 +259,66 @@ class AirSimController:
         orientation = self.getPositionAirsimUAV().orientation
         # convert to xyz and yaw
         _, _, yaw = airsim.to_eularian_angles(orientation)
-        uavwp = [uavpos[0], uavpos[1], uavpos[2], yaw]
+        uavwp = [uavpos[0], uavpos[1], uavpos[2], degrees(-yaw)]
         # add waypoint
         waypoints.append(uavwp)
-
-        secondround = []
 
         # get current gate positions
         for i in range(1,5):
             # get gate position
             gp = self.getPositionGate(i)
+            # self.printPose(gp)
             orientation = self.getPositionAirsimGate(i).orientation
             # convert to xyz and yaw
             _, _, yaw = airsim.to_eularian_angles(orientation)
-            wp = [gp[0], gp[1], gp[2], yaw]
-            # add waypoint
-            waypoints.append(wp)
-            secondround.append(wp)
 
-        # add second round to mission
-        # waypoints += secondround
+            wp1, wp2 = self.create2WaypointsOffset(gp[:3], -yaw, 1)
+            wp1 = [wp1[0], wp1[1], wp1[2], degrees(-yaw)]
+            wpg = [gp[0], gp[1], gp[2], degrees(-yaw)]
+            wp2 = [wp2[0], wp2[1], wp2[2], degrees(-yaw)]
+            # add waypoint
+            # waypoints.append(wp2)
+            waypoints.append(wpg)
+            # waypoints.append(wp1)
 
         # add uavwp again - starting point as endpoint
         waypoints.append(uavwp)
 
-        # call maveric to get trajectory
-        return maveric.planner(waypoints, timestep=timestep)
 
-    # convert waypoints, trajectory from generateTrajectoryFromCurrentGatePositions() to airsim.Vector3r list and [x,y,z,yaw,timestamp]
+        if traj:
+            # call maveric to get trajectory
+            return maveric.planner(waypoints, timestep=timestep)
+        else:
+            # return list of waypoints
+            return waypoints 
+
+    # this is a sampling function which
+    # converts waypoints, trajectory from generateTrajectoryFromCurrentGatePositions() to airsim.Vector3r list and [x,y,z,yaw,timestamp]
+    # config.waypoints_per_segment waypoints will be generated for each segment of trajectory, where a segment is the polynomial between two waypoints (gates)
     def convertTrajectoryToWaypoints(self, waypoints, trajectory, evaltime=10):
         out = []
         outComplete = []
 
+        # for each segment...
         for i in range(len(trajectory)):
 
-            t = np.linspace(waypoints[i].time, waypoints[i + 1].time, (int(waypoints[i + 1].time) - int(waypoints[i].time)) * evaltime)
+            t = np.linspace(waypoints[i].time, waypoints[i + 1].time, self.config.waypoints_per_segment)
             x_path = (trajectory[i][0] * t ** 4 + trajectory[i][1] * t ** 3 + trajectory[i][2] * t ** 2 + trajectory[i][3] * t + trajectory[i][4])
             y_path = (trajectory[i][5] * t ** 4 + trajectory[i][6] * t ** 3 + trajectory[i][7] * t ** 2 + trajectory[i][8] * t + trajectory[i][9])
             z_path = (trajectory[i][10] * t ** 4 + trajectory[i][11] * t ** 3 + trajectory[i][12] * t ** 2 + trajectory[i][13] * t + trajectory[i][14])
             yaw_path = (trajectory[i][15] * t ** 2 + trajectory[i][16] * t + trajectory[i][17])
 
+            # ... calculate position of each waypoint
             for j in range(len(t)):
                 out.append(airsim.Vector3r(x_path[j], y_path[j], z_path[j]))
-                outComplete.append([x_path[j], y_path[j], z_path[j], yaw_path[j], t[j]])
+                yaw = self.vectorToYaw(np.array([x_path[j], y_path[j], z_path[j]]) - np.array([waypoints[i+1].x, waypoints[i+1].y, waypoints[i+1].z]))
+                outComplete.append([x_path[j], y_path[j], z_path[j], yaw, t[j]]) # yaw_path[j]
 
         return out, outComplete
+
+    def vectorToYaw(self, vec):
+        return degrees(atan2(vec[1], vec[0])) - 180
+
 
     # print pose list 
     # pose: [x, y, z, qw, qx, qy, qz]
@@ -219,7 +341,7 @@ class AirSimController:
             folder = os.path.join(path, name)
 
         if not os.path.isdir(folder):
-            print(f"created folder '{folder}'")
+            # print(f"created folder '{folder}'")
             os.mkdir(folder)
 
     # reset simulation environment

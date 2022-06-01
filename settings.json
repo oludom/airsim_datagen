@@ -22,7 +22,7 @@
   },
 
   "Vehicles": {
-    "SimpleFlight": {
+    "mike": {
       "VehicleType": "SimpleFlight",
       "Model": "Hexacopter",
       "DefaultVehicleState": "Armed",
@@ -72,6 +72,18 @@
           ],
           "X": 0.50, "Y": 0, "Z": 0.0,
           "Pitch": 0, "Roll": 0, "Yaw": 0
+        }
+      },
+      "Sensors": {
+        "Imu": {
+          "SensorType": 2,
+          "Enabled" : true,
+          "AngularRandomWalk": 0.3,
+          "GyroBiasStabilityTau": 500,
+          "GyroBiasStability": 4.6,
+          "VelocityRandomWalk": 0.24,
+          "AccelBiasStabilityTau": 800,
+          "AccelBiasStability": 36
         }
       },
       "X": 0.5, "Y": 0.0, "Z": 0.0,
