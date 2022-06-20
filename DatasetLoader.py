@@ -116,7 +116,7 @@ class RacetrackLoader:
 
 
 class RaceTracksDataset(Dataset):
-    def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu'):
+    def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu', yawMaxCommand=10):
 
         # create image transform to transform image to tensor
         self.imageTransform = transforms.Compose([
@@ -134,9 +134,15 @@ class RaceTracksDataset(Dataset):
 
         self.device = device
 
+        self.yawMaxCommand = yawMaxCommand
+
     def __getitem__(self, index):
         ts, waypoints, pose, imu, lipath = self.data[index]
-        label = self.waypointToVelocityVector(waypoints, pose)
+        if index > 0:
+            _, _, prevPose, _, _ = self.data[index - 1]
+        else:
+            prevPose = pose
+        label = self.waypointToVelocityVector(waypoints, pose, prevPose)
         # TODO: normalize?
         sample = self.loadImage(lipath)
         # move to device
@@ -161,16 +167,29 @@ class RaceTracksDataset(Dataset):
         tensor = self.imageTransform(resized)
         return tensor
 
-    def waypointToVelocityVector(self, waypoints, pose):
+
+    '''
+    calculate velocity vector
+    x,y,z velocity = normalized mean of next n waypoints, moved to local frame
+    where n = localTrajectoryLength
+    '''
+    def waypointToVelocityVector(self, waypoints, pose, prevPose):
         ret = torch.tensor(waypoints, dtype=torch.float32)
         # remove timestamp
         ret = ret[:, :4]
         # move waypoints into local frame
         posey = torch.tensor([pose[0], pose[1], pose[2], util.to_eularian_angles(*pose[3:7])[2]])
+        prevPosey = torch.tensor([prevPose[0], prevPose[1], prevPose[2], util.to_eularian_angles(*prevPose[3:7])[2]])
         ret = ret - posey
         # calculate unit vector from local waypoints
         ret = torch.mean(ret, dim=0)
-        yaw = ret[3]
+        # calculate actual yaw change since last frame
+        yaw = posey[3] - prevPosey[3]
+        # if yaw request is too high then there was probably a jump to the next race track in the dataset
+        if -self.yawMaxCommand > yaw or yaw > self.yawMaxCommand:
+            yaw = 0
+        # normalize yaw
+        yaw *= 1./float(self.yawMaxCommand)
         ret = ret[:3]
         ret = fn.normalize(ret, dim=0)
         return torch.tensor([*ret, yaw])
@@ -190,7 +209,11 @@ class RaceTracksDataset(Dataset):
         velocities = []
         for index in range(len(self.data)):
             ts, waypoints, pose, imu, lipath = self.data[index]
-            vector = self.waypointToVelocityVector(waypoints, pose)
+            if index > 0:
+                _, _, prevPose, _, _ = self.data[index - 1]
+            else:
+                prevPose = pose
+            vector = self.waypointToVelocityVector(waypoints, pose, prevPose)
             poses.append(pose)
             velocities.append(vector)
 

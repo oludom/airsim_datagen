@@ -49,7 +49,7 @@ class SimClient(AirSimController):
         self.gateConfigurations = []
         self.currentGateConfiguration = 0
 
-        self.timestep = 1./self.config.framerate
+        # self.timestep = 1./self.config.framerate
 
 
     '''
@@ -124,41 +124,55 @@ class SimClient(AirSimController):
         if showMarkers:
             self.client.simPlotPoints(path, color_rgba=[1.0, 0.0, 0.0, .2], size = 10.0, duration = -1.0, is_persistent = True)
 
-        lastTs = time.time()
+        lastWP = time.time()
+        lastImage = time.time()
+        lastIMU = time.time()
+        lastPID = time.time()
+
+
+        timePerWP = float(self.config.roundtime) / len(pathComplete)
+        timePerImage = 1./float(self.config.framerate)
+        timePerIMU = 1./float(self.config.imuRate)
+        timePerPID = 1./float(self.config.pidRate)
 
         cwpindex = 0
-        timePerWP = float(self.config.roundtime) / len(pathComplete) 
         cimageindex = 0
 
-        lastWaypointTs = time.time()
 
         # controll loop
         while mission:
 
             # get and plot current waypoint (blue)
             wp = pathComplete[cwpindex]
-            if showMarkers:
-                self.client.simPlotPoints([airsim.Vector3r(wp[0], wp[1], wp[2])], color_rgba=[0.0, 0.0, 1.0, 1.0], size = 10.0, duration = self.timestep, is_persistent = False)
+
+            # show markers if applicable
+            self.showMarkers(showMarkers, wp)
 
             # get current time and time delta
             tn = time.time()
-            # time delta
-            dt = tn - lastTs
+
+            nextWP = tn - lastWP > timePerWP
+            nextImage = tn - lastImage > timePerImage
+            nextIMU = tn - lastIMU > timePerIMU
+            nextPID = tn - lastPID > timePerPID
 
             # wait remaining time until time step has passed
-            remainingTime = (self.timestep) - dt
-            if remainingTime > 0:
-                time.sleep(remainingTime)
+            # remainingTime = (self.timestep) - dt
+            # if remainingTime > 0:
+            #     time.sleep(remainingTime)
 
-            # get current time again
-            tn = time.time()
-            # new time delta
-            dt = tn - lastTs
+            # # get current time again
+            # tn = time.time()
+            # # new time delta
+            # dt = tn - lastTs
 
             # calculate actual frequency
-            hz = 1./float(dt)
+            # hz = 1./float(dt)
 
-            if captureImages:
+            if nextIMU:
+                self.captureIMU()
+
+            if nextImage and captureImages:
                 # pause simulation
                 prepause = time.time()
                 self.client.simPause(True)
@@ -173,60 +187,71 @@ class SimClient(AirSimController):
                 pausedelta = postpause - prepause
                 if self.config.debug:
                     self.c.addstr(10,0, f"pausedelta: {pausedelta}")
-                lastTs += pausedelta
-                lastWaypointTs += pausedelta
+                lastWP += pausedelta
+                lastIMU += pausedelta
                 tn += pausedelta
+                lastImage = tn
 
-            if self.config.debug:
-                self.c.addstr(0,0, "following generated path from gates...")
-                self.c.addstr(2,0, f"frame rate: {hz}")
+            # if self.config.debug:
+            #     self.c.addstr(0,0, "following generated path from gates...")
+            #     self.c.addstr(2,0, f"frame rate: {hz}")
 
-            # get current state
-            cstate = self.getState()
-            # convert yaw to degree
-            cstate[3] = degrees(cstate[3])
-            # inform pid controller about state
-            ctrl.setState(cstate)
+            if nextPID:
 
-            # set goal state of pid controller
-            ctrl.setGoal(wp[:4])
-            # update pid controller
-            ctrl.update(dt)
-            # get current pid output´
-            vel, yaw = ctrl.getVelocityYaw()
+                # get current state
+                cstate = self.getState()
+                # convert yaw to degree
+                cstate[3] = degrees(cstate[3])
+                # inform pid controller about state
+                ctrl.setState(cstate)
 
-            # add pid output for yaw to current yaw position
-            yaw = cstate[3] + yaw
+                # set goal state of pid controller
+                ctrl.setGoal(wp[:4])
+                # update pid controller
+                ctrl.update(tn - lastPID)
+                # get current pid output´
+                vel, yaw = ctrl.getVelocityYaw()
 
-            '''
-            Args:
-                vx (float): desired velocity in world (NED) X axis
-                vy (float): desired velocity in world (NED) Y axis
-                vz (float): desired velocity in world (NED) Z axis
-                duration (float): Desired amount of time (seconds), to send this command for
-                drivetrain (DrivetrainType, optional):
-                yaw_mode (YawMode, optional):
-                vehicle_name (str, optional): Name of the multirotor to send this command to
-            '''
-            self.client.moveByVelocityAsync(float(vel[0]), float(vel[1]), float(vel[2]), duration=float(self.timestep), yaw_mode=airsim.YawMode(False, yaw))
+                # add pid output for yaw to current yaw position
+                yaw = cstate[3] + yaw
+
+                '''
+                Args:
+                    vx (float): desired velocity in world (NED) X axis
+                    vy (float): desired velocity in world (NED) Y axis
+                    vz (float): desired velocity in world (NED) Z axis
+                    duration (float): Desired amount of time (seconds), to send this command for
+                    drivetrain (DrivetrainType, optional):
+                    yaw_mode (YawMode, optional):
+                    vehicle_name (str, optional): Name of the multirotor to send this command to
+                '''
+                self.client.moveByVelocityAsync(float(vel[0]), float(vel[1]), float(vel[2]), duration=float(timePerPID), yaw_mode=airsim.YawMode(False, yaw))
+
+                # save last PID time
+                lastPID = tn
 
             # debug output
             if self.config.debug:
                 self.c.refresh()
 
-            # remember last time stamp for next iteration
-            lastTs = tn
+
 
             # increase current waypoint index if time per waypoint passed and if there are more waypoints available in path
-            if tn - lastWaypointTs > timePerWP and len(pathComplete) > (cwpindex+1):
+            if nextWP and len(pathComplete) > (cwpindex+1):
                 cwpindex = cwpindex + 1
-                lastWaypointTs = tn
+                lastWP = tn
             # end mission when no more waypoints available
             if len(pathComplete) <= (cwpindex+1):
                 mission = False
         if showMarkers:
             # clear persistent markers
             self.client.simFlushPersistentMarkers()
+
+    def showMarkers(self, showMarkers, wp):
+        if showMarkers:
+            self.client.simPlotPoints([airsim.Vector3r(wp[0], wp[1], wp[2])], color_rgba=[0.0, 0.0, 1.0, 1.0],
+                                      size=10.0, duration=self.timestep, is_persistent=False)
+
 
     # set gate poses in simulation to provided configuration
     # gates: [ [x, y, z, yaw], ...] 

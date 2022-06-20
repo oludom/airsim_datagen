@@ -1,6 +1,8 @@
 {
     "debug": true,
     "framerate": 30,
+    "imuRate": 100,
+    "pidRate": 30,
     "roundtime": 60,
     "waypoints_per_segment": 50,
     "gate_basename": "BP_AirLab2m1Gate_",

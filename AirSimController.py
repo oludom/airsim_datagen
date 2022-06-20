@@ -82,6 +82,9 @@ class AirSimController:
         self.outputFile = open(self.DATASET_PATH_FILE, "w")
         print('{\n"data": [', file=self.outputFile)
 
+        # imu cache for faster data collection
+        self.imuCache = []
+
     # save config file to data set folder
     # gates: np.array of shape [x, y, z, yaw]
     # data: dict - key value
@@ -207,13 +210,14 @@ class AirSimController:
         # save left image
         airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)
         # save right image
-        airsim.write_file(self.DATASET_PATH_RIGHT + f"/{cfname}.png", right.image_data_uint8)
+        # airsim.write_file(self.DATASET_PATH_RIGHT + f"/{cfname}.png", right.image_data_uint8)
         # save depth as portable float map
         airsim.write_pfm(self.DATASET_PATH_DEPTH + f"/{cfname}.pfm", airsim.get_pfm_array(depth))
 
-        # get imu data
-        imuData = self.client.getImuData()
-        ts, imu = self.convertImuToDict(imuData)
+        ts = self.captureIMU()
+        imu = self.imuCache
+        # reset imu cache
+        self.imuCache = []
 
         # get UAV pose
         pos = list(self.getPositionUAV())
@@ -228,6 +232,13 @@ class AirSimController:
         }
         print(f"{json.dumps(entry, indent=1)},", file=self.outputFile)
 
+
+    def captureIMU(self):
+        # get imu data
+        imuData = self.client.getImuData()
+        ts, imu = self.convertImuToDict(imuData)
+        self.imuCache.append([ts, imu])
+        return ts
 
     # create two waypoints with offset from gate center position, with the same yaw rotation as gate
     # can be used to influence trajectory generation to make drone go through the gates in a more straight line
