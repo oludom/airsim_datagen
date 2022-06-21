@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import json
+import math
+
 import cv2
 import torchvision.transforms as transforms
 
@@ -57,7 +59,10 @@ class RacetrackLoader:
         self.raceTrackName = raceTrackName
 
     def __iter__(self):
-        for frame in self.data:
+
+        for i, frame in enumerate(self.data):
+            if i > 200:  # TODO: debugging, shortens the dataset by a lot of images
+                break
             # load left image
             lipath = self.DATASET_PATH_LEFT + "/" + frame['image_name'] + ".png"
             # img = self.loadImage(lipath)
@@ -116,7 +121,7 @@ class RacetrackLoader:
 
 
 class RaceTracksDataset(Dataset):
-    def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu', yawMaxCommand=10):
+    def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu', yawMaxCommand=10, maxTracksLoaded=-1, imageScale=100): # imageScale in percent of original image size
 
         # create image transform to transform image to tensor
         self.imageTransform = transforms.Compose([
@@ -126,7 +131,13 @@ class RaceTracksDataset(Dataset):
         dataset_path = dataset_basepath + "/" + dataset_basename
         # load all tracks in directory
         self.rtLoaders = []
+        loadedTracks = 0
+        if maxTracksLoaded == -1:
+            maxTracksLoaded = math.inf
         for path in glob.glob(f"{dataset_path}/*/"):
+            if loadedTracks >= maxTracksLoaded:
+                break
+            loadedTracks += 1
             trackname = Path(path).parts[-1]
             self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength))
 
@@ -135,6 +146,8 @@ class RaceTracksDataset(Dataset):
         self.device = device
 
         self.yawMaxCommand = yawMaxCommand
+
+        self.imageScale = imageScale
 
     def __getitem__(self, index):
         ts, waypoints, pose, imu, lipath = self.data[index]
@@ -157,7 +170,7 @@ class RaceTracksDataset(Dataset):
         image = cv2.imread(path)
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         # scale down
-        scale_percent = 30  # percent of original size
+        scale_percent = self.imageScale  # percent of original size
         width = int(gray.shape[1] * scale_percent / 100)
         height = int(gray.shape[0] * scale_percent / 100)
         dim = (width, height)

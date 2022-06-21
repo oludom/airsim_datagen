@@ -15,9 +15,11 @@ torch.set_grad_enabled(True)
 
 device = 'cpu'
 
-dataset_basepath = "/home/micha/dev/datasets/droneracing"
+dataset_basepath = "/media/micha/eSSD/datasets"
+# dataset_basepath = "/home/micha/dev/datasets/droneracing"
 # dataset_basepath = "/data/datasets"
-dataset_basename = "X4Gates_Circle_1"
+dataset_basename = "X4Gates_Circle_0"
+# dataset_basename = "X4Gates_Circle_1"
 # dataset_basename = "X4Gates_Circle_2"
 
 dataset = RaceTracksDataset(dataset_basepath, dataset_basename, device=device)

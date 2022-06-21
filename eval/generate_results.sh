@@ -7,10 +7,12 @@
 
 
 # dataset folder
-DATASETS=/home/micha/dev/datasets/droneracing
-DFOLDER=/X4Gates_Circle_1
-DATASETS=/data/datasets
-DFOLDER=/X4Gates_Circle_2
+DATASETS=/media/micha/eSSD/datasets
+DFOLDER=/X4Gates_Circle_0
+#DATASETS=/home/micha/dev/datasets/droneracing
+#DFOLDER=/X4Gates_Circle_1
+#DATASETS=/data/datasets
+#DFOLDER=/X4Gates_Circle_2
 DATASET="$DATASETS$DFOLDER"
 
 # enable wildcards
