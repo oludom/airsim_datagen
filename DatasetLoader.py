@@ -119,7 +119,7 @@ class RacetrackLoader:
 
 class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
-                 yawMaxCommand=10, maxTracksLoaded=-1, imageScale=100, grayScale=True,  # imageScale in percent of original image size
+                 yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,  # imageScale in percent of original image size
                  imageTransforms=transforms.Compose([transforms.ToTensor])
                  ):
 
@@ -133,9 +133,11 @@ class RaceTracksDataset(Dataset):
         if maxTracksLoaded == -1:
             maxTracksLoaded = math.inf
         for path in glob.glob(f"{dataset_path}/*/"):
-            if loadedTracks >= maxTracksLoaded:
+            if loadedTracks >= maxTracksLoaded+skipTracks:
                 break
             loadedTracks += 1
+            if loadedTracks <= skipTracks:
+                continue
             trackname = Path(path).parts[-1]
             self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength))
 
