@@ -12,7 +12,6 @@ from pathlib import Path
 
 from itertools import chain
 
-import pandas as pd
 import torch
 from torch.utils.data import Dataset
 import torch.nn.functional as fn
