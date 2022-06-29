@@ -34,10 +34,10 @@ from UnityPID import VelocityPID
 
 class SimClient(AirSimController):
 
-    def __init__(self, raceTrackName="track0"):
+    def __init__(self, raceTrackName="track0", *args, **kwargs):
 
         # init super class (AirSimController)
-        super().__init__(raceTrackName=raceTrackName)
+        super().__init__(raceTrackName=raceTrackName,  *args, **kwargs)
 
         # do custom setup here
 
@@ -413,26 +413,28 @@ class SimClient(AirSimController):
     def toVector3r(self, wp):
         return airsim.Vector3r(wp[0], wp[1], wp[2])
 
-import contextlib
+if __name__ == "__main__":
 
-configurations = []
+    import contextlib
 
-with contextlib.closing(SimClient()) as sc:
-    # generate random gate configurations within bounds set in config.json
-    sc.generateGateConfigurations()
-    configurations = deepcopy(sc.gateConfigurations)
+    configurations = []
+
+    with contextlib.closing(SimClient()) as sc:
+        # generate random gate configurations within bounds set in config.json
+        sc.generateGateConfigurations()
+        configurations = deepcopy(sc.gateConfigurations)
 
 
-for i, gateConfig in enumerate(configurations):
-    with contextlib.closing(SimClient(raceTrackName=f"track{i}")) as sc:
+    for i, gateConfig in enumerate(configurations):
+        with contextlib.closing(SimClient(raceTrackName=f"track{i}")) as sc:
 
-        sc.gateConfigurations = [gateConfig]
-        
-
-        sc.loadNextGatePosition()
+            sc.gateConfigurations = [gateConfig]
             
-        # fly mission
-        sc.gateMission(False)
 
-        sc.loadGatePositions(sc.config.gates['poses'])
-        sc.reset()
+            sc.loadNextGatePosition()
+                
+            # fly mission
+            sc.gateMission(False)
+
+            sc.loadGatePositions(sc.config.gates['poses'])
+            sc.reset()

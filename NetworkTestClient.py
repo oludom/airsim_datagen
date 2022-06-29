@@ -15,6 +15,7 @@ import airsim
 import numpy as np
 import pprint
 import curses
+import torch
 
 import os
 import time
@@ -38,10 +39,17 @@ class NetworkTestClient(SimClient):
     def __init__(self, raceTrackName="track0"):
 
         # init super class (AirSimController)
-        super().__init__(raceTrackName=raceTrackName)
+        super().__init__(raceTrackName=raceTrackName, createDataset=False)
 
         # do custom setup here
 
 
         self.gateConfigurations = []
         self.currentGateConfiguration = 0
+
+if __name__ == "__main__":
+
+    import contextlib
+
+    with contextlib.closing(NetworkTestClient()) as nc:
+        pass
