@@ -199,13 +199,13 @@ class AirSimController:
         res = self.client.simGetImages(
             [
                 airsim.ImageRequest("front_left", airsim.ImageType.Scene),
-                airsim.ImageRequest("front_right", airsim.ImageType.Scene),
+                # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
                 airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
             ]
         )
         left = res[0]
-        right = res[1]
-        depth = res[2]
+        # right = res[1]
+        depth = res[1]
 
         # save left image
         airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)

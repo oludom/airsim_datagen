@@ -91,6 +91,8 @@ class SimClient(AirSimController):
         # takeoff
         self.client.takeoffAsync().join()
 
+        time.sleep(3)
+
         # init pid controller for velocity control
         pp = 2
         dd = .2
@@ -142,6 +144,9 @@ class SimClient(AirSimController):
         # controll loop
         while mission:
 
+            # if self.config.debug:
+            #     self.c.clear()
+
             # get and plot current waypoint (blue)
             wp = pathComplete[cwpindex]
 
@@ -155,6 +160,23 @@ class SimClient(AirSimController):
             nextImage = tn - lastImage > timePerImage
             nextIMU = tn - lastIMU > timePerIMU
             nextPID = tn - lastPID > timePerPID
+
+
+            if self.config.debug:
+                if nextWP:
+                    self.c.addstr(3, 0, f"wpt: {format(1./float(tn - lastWP), '.4f')}hz")
+                if nextImage:
+                    self.c.addstr(4, 0, f"img: {format(1./float(tn - lastImage), '.4f')}hz")
+                if nextIMU:
+                    self.c.addstr(5, 0, f"imu: {format(1./float(tn - lastIMU), '.4f')}hz")
+                if nextPID:
+                    self.c.addstr(6, 0, f"pid: {format(1./float(tn - lastPID), '.4f')}hz")
+
+                # self.c.addstr(3, 0, f"wpt: {format(float(tn - lastWP), '.4f')}")
+                # self.c.addstr(4, 0, f"img: {format(float(tn - lastImage), '.4f')}")
+                # self.c.addstr(5, 0, f"imu: {format(float(tn - lastIMU), '.4f')}")
+                # self.c.addstr(6, 0, f"pid: {format(float(tn - lastPID), '.4f')}")
+
 
             # wait remaining time until time step has passed
             # remainingTime = (self.timestep) - dt
@@ -171,6 +193,7 @@ class SimClient(AirSimController):
 
             if nextIMU:
                 self.captureIMU()
+                lastIMU = tn
 
             if nextImage and captureImages:
                 # pause simulation
@@ -195,6 +218,7 @@ class SimClient(AirSimController):
             # if self.config.debug:
             #     self.c.addstr(0,0, "following generated path from gates...")
             #     self.c.addstr(2,0, f"frame rate: {hz}")
+
 
             if nextPID:
 
