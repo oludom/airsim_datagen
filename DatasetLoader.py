@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import json
+import math
+
 import cv2
 import torchvision.transforms as transforms
 
@@ -10,7 +12,6 @@ from pathlib import Path
 
 from itertools import chain
 
-import pandas as pd
 import torch
 from torch.utils.data import Dataset
 import torch.nn.functional as fn
@@ -57,10 +58,10 @@ class RacetrackLoader:
         self.raceTrackName = raceTrackName
 
     def __iter__(self):
-        for frame in self.data:
+
+        for i, frame in enumerate(self.data):
             # load left image
             lipath = self.DATASET_PATH_LEFT + "/" + frame['image_name'] + ".png"
-            # img = self.loadImage(lipath)
 
             # load other values
             ts = frame['time_stamp']
@@ -116,25 +117,35 @@ class RacetrackLoader:
 
 
 class RaceTracksDataset(Dataset):
-    def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu', yawMaxCommand=10):
+    def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
+                 yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,  # imageScale in percent of original image size
+                 imageTransforms=transforms.Compose([transforms.ToTensor])
+                 ):
 
         # create image transform to transform image to tensor
-        self.imageTransform = transforms.Compose([
-            transforms.ToTensor()
-        ])
+        self.imageTransform = imageTransforms
 
         dataset_path = dataset_basepath + "/" + dataset_basename
         # load all tracks in directory
         self.rtLoaders = []
+        loadedTracks = 0
+        if maxTracksLoaded == -1:
+            maxTracksLoaded = math.inf
         for path in glob.glob(f"{dataset_path}/*/"):
+            if loadedTracks >= maxTracksLoaded+skipTracks:
+                break
+            loadedTracks += 1
+            if loadedTracks <= skipTracks:
+                continue
             trackname = Path(path).parts[-1]
             self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength))
 
         self.data = list(chain(*self.rtLoaders))
 
         self.device = device
-
         self.yawMaxCommand = yawMaxCommand
+        self.imageScale = imageScale
+        self.grayScale = grayScale
 
     def __getitem__(self, index):
         ts, waypoints, pose, imu, lipath = self.data[index]
@@ -155,24 +166,45 @@ class RaceTracksDataset(Dataset):
 
     def loadImage(self, path):
         image = cv2.imread(path)
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+
+        if self.grayScale:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
         # scale down
-        scale_percent = 30  # percent of original size
-        width = int(gray.shape[1] * scale_percent / 100)
-        height = int(gray.shape[0] * scale_percent / 100)
-        dim = (width, height)
-        # resize image
-        resized = cv2.resize(gray, dim, interpolation=cv2.INTER_AREA)
+        if not self.imageScale == 100:
+            scale_percent = self.imageScale  # percent of original size
+            width = int(image.shape[1] * scale_percent / 100)
+            height = int(image.shape[0] * scale_percent / 100)
+            dim = (width, height)
+            # resize image
+            image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
-        tensor = self.imageTransform(resized)
-        return tensor
+        # opencv loads images with last dimension as color channel
+        # so they have to be reordered for pytorch
 
+        image = transforms.Compose([
+            transforms.ToTensor(),
+        ])(image)
+
+        # if not self.grayScale:
+        #     # image = torch.tensor(image)
+        #     image = torch.permute(image, (2, 0, 1)) # channels, height, width
+            # image = image.numpy()
+
+        # convert to torch.Tensor
+
+        image = self.imageTransform(image)
+
+        return image
 
     '''
     calculate velocity vector
     x,y,z velocity = normalized mean of next n waypoints, moved to local frame
     where n = localTrajectoryLength
     '''
+
     def waypointToVelocityVector(self, waypoints, pose, prevPose):
         ret = torch.tensor(waypoints, dtype=torch.float32)
         # remove timestamp
@@ -189,7 +221,7 @@ class RaceTracksDataset(Dataset):
         if -self.yawMaxCommand > yaw or yaw > self.yawMaxCommand:
             yaw = 0
         # normalize yaw
-        yaw *= 1./float(self.yawMaxCommand)
+        yaw *= 1. / float(self.yawMaxCommand)
         ret = ret[:3]
         ret = fn.normalize(ret, dim=0)
         return torch.tensor([*ret, yaw])

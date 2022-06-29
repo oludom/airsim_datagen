@@ -7,7 +7,7 @@
    viewBox="0 0 297 210"
    version="1.1"
    id="svg5"
-   inkscape:version="1.1.2 (08b2f3d93c, 2022-04-05)"
+   inkscape:version="1.2 (56b05e47e7, 2022-06-09, custom)"
    sodipodi:docname="airsim_interface_pkg.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -23,15 +23,17 @@
      inkscape:pagecheckerboard="0"
      inkscape:document-units="mm"
      showgrid="false"
-     inkscape:zoom="0.45291837"
-     inkscape:cx="608.27738"
-     inkscape:cy="319.04204"
-     inkscape:window-width="1848"
-     inkscape:window-height="1016"
-     inkscape:window-x="2632"
-     inkscape:window-y="387"
+     inkscape:zoom="1.8116735"
+     inkscape:cx="462.00378"
+     inkscape:cy="263.84445"
+     inkscape:window-width="1878"
+     inkscape:window-height="1043"
+     inkscape:window-x="42"
+     inkscape:window-y="0"
      inkscape:window-maximized="1"
-     inkscape:current-layer="layer1" />
+     inkscape:current-layer="layer1"
+     inkscape:showpageshadow="2"
+     inkscape:deskcolor="#d1d1d1" />
   <defs
      id="defs2">
     <marker
@@ -118,6 +120,48 @@
          style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:0.625;stroke-linejoin:round"
          id="path25091" />
     </marker>
+    <marker
+       style="overflow:visible"
+       id="marker78139-8"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-1.1,0,0,-1.1,-1.1,0)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:0.625;stroke-linejoin:round"
+         id="path78137-4" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="marker78139-6"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Lend"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(-1.1,0,0,-1.1,-1.1,0)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:0.625;stroke-linejoin:round"
+         id="path78137-7" />
+    </marker>
+    <marker
+       style="overflow:visible"
+       id="Arrow2Lstart-2"
+       refX="0"
+       refY="0"
+       orient="auto"
+       inkscape:stockid="Arrow2Lstart"
+       inkscape:isstock="true">
+      <path
+         transform="matrix(1.1,0,0,1.1,1.1,0)"
+         d="M 8.7185878,4.0337352 -2.2072895,0.01601326 8.7185884,-4.0017078 c -1.7454984,2.3720609 -1.7354408,5.6174519 -6e-7,8.035443 z"
+         style="fill:context-stroke;fill-rule:evenodd;stroke:context-stroke;stroke-width:0.625;stroke-linejoin:round"
+         id="path25088-9" />
+    </marker>
   </defs>
   <g
      inkscape:label="Layer 1"
@@ -131,12 +175,12 @@
        x="109.51267"
        y="58.861618" />
     <rect
-       style="fill:#ffede3;fill-opacity:1;stroke:#1e4598;stroke-width:0.232328"
+       style="fill:#ffede3;fill-opacity:1;stroke:#1e4598;stroke-width:0.245074"
        id="rect846-4"
-       width="31.403601"
-       height="8.0569229"
-       x="106.7907"
-       y="22.550253" />
+       width="34.270847"
+       height="8.2151299"
+       x="107.29272"
+       y="39.452209" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
@@ -151,14 +195,14 @@
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="107.93874"
-       y="25.772264"
+       x="108.43439"
+       y="42.66785"
        id="text6472-8"><tspan
          sodipodi:role="line"
          id="tspan6470-8"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="107.93874"
-         y="25.772264">Unreal Environment</tspan></text>
+         x="108.43439"
+         y="42.66785">Unreal Environment</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
@@ -175,318 +219,285 @@
        id="rect846-8"
        width="23.987925"
        height="8.0858345"
-       x="30.606886"
-       y="58.873325" />
+       x="69.612488"
+       y="69.12056" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="31.700583"
-       y="62.04232"
+       x="70.706184"
+       y="72.289558"
        id="text6472-1"><tspan
          sodipodi:role="line"
          id="tspan6470-2"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="31.700583"
-         y="62.04232">MAVeric</tspan></text>
+         x="70.706184"
+         y="72.289558">MAVeric</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="27.828493"
-       y="54.69643"
+       x="62.138214"
+       y="55.635757"
        id="text6472-1-5"><tspan
          sodipodi:role="line"
          id="tspan6470-2-1"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="27.828493"
-         y="54.69643">Planning &amp; Control code</tspan></text>
+         x="62.138214"
+         y="55.635757">Planning &amp; Control code</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="31.951246"
-       y="65.754501"
+       x="70.956848"
+       y="76.00174"
        id="text6472-6-89"><tspan
          sodipodi:role="line"
          id="tspan6470-3-3"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="31.951246"
-         y="65.754501">MAVeric lib</tspan></text>
+         x="70.956848"
+         y="76.00174">MAVeric lib</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="108.35625"
-       y="28.867392"
+       x="108.85189"
+       y="45.762978"
        id="text6472-6-8"><tspan
          sodipodi:role="line"
          id="tspan6470-3-9"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="108.35625"
-         y="28.867392">Airsim lib</tspan></text>
+         x="108.85189"
+         y="45.762978">Airsim lib</tspan></text>
     <rect
-       style="fill:#cedafe;fill-opacity:1;stroke:#1e4598;stroke-width:0.283333"
+       style="fill:#cedafe;fill-opacity:1;stroke:#1e4598;stroke-width:0.311229"
        id="rect846-7"
-       width="47.003601"
-       height="8.0059175"
-       x="138.48656"
-       y="58.954681" />
+       width="50.33223"
+       height="9.0211496"
+       x="116.14201"
+       y="69.084648" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="140.83775"
-       y="62.003143"
+       x="118.47926"
+       y="72.119164"
        id="text6472-5"><tspan
          sodipodi:role="line"
          id="tspan6470-9"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="140.83775"
-         y="62.003143">Airsim SimpleFlight Interface</tspan></text>
+         x="118.47926"
+         y="72.119164">Airsim SimpleFlight Interface</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="141.48488"
-       y="65.588226"
+       x="119.12638"
+       y="75.704247"
        id="text6472-6-6"><tspan
          sodipodi:role="line"
          id="tspan6470-3-2"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="141.48488"
-         y="65.588226">airsim_simple_flight_interface.py</tspan></text>
+         x="119.12638"
+         y="75.704247">AirSimController.py</tspan></text>
     <rect
        style="fill:#cedafe;fill-opacity:1;stroke:#1e4598;stroke-width:0.216681"
        id="rect846-7-8"
        width="27.263525"
        height="8.0725698"
-       x="122.84135"
-       y="82.069572" />
+       x="110.02228"
+       y="93.888985" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="124.95248"
-       y="85.428772"
+       x="112.13341"
+       y="97.248184"
        id="text6472-5-5"><tspan
          sodipodi:role="line"
          id="tspan6470-9-7"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="124.95248"
-         y="85.428772">Client</tspan></text>
+         x="112.13341"
+         y="97.248184">Client</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="125.05373"
-       y="88.85907"
+       x="112.23466"
+       y="100.67848"
        id="text6472-6-6-4"><tspan
          sodipodi:role="line"
          id="tspan6470-3-2-1"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="125.05373"
-         y="88.85907">immitation_learning.py</tspan></text>
+         x="112.23466"
+         y="100.67848">e.g. SimClient.py</tspan></text>
     <rect
        style="fill:#cedafe;fill-opacity:1;stroke:#1e4598;stroke-width:0.229584"
        id="rect846-7-8-6"
        width="30.656227"
        height="8.0596666"
-       x="31.357931"
-       y="79.834473" />
+       x="70.363533"
+       y="90.081711" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="33.462608"
-       y="83.187225"
+       x="72.468208"
+       y="93.434464"
        id="text6472-5-5-80"><tspan
          sodipodi:role="line"
          id="tspan6470-9-7-2"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="33.462608"
-         y="83.187225">Min-snap Planner</tspan></text>
+         x="72.468208"
+         y="93.434464">Min-snap Planner</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="33.563881"
-       y="86.617523"
+       x="72.569481"
+       y="96.864761"
        id="text6472-6-6-4-1"><tspan
          sodipodi:role="line"
          id="tspan6470-3-2-1-0"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="33.563881"
-         y="86.617523">expert_smooth_planner.py</tspan></text>
+         x="72.569481"
+         y="96.864761">expert_smooth_planner.py</tspan></text>
     <rect
        style="fill:#cedafe;fill-opacity:1;stroke:#1e4598;stroke-width:0.238387"
        id="rect846-7-8-94"
        width="33.08831"
        height="8.0508642"
-       x="65.311371"
-       y="58.802711" />
+       x="31.435827"
+       y="69.058098" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="67.214844"
-       y="62.554375"
+       x="33.339298"
+       y="72.809761"
        id="text6472-5-5-6"><tspan
          sodipodi:role="line"
          id="tspan6470-9-7-9"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="67.214844"
-         y="62.554375">Controllers</tspan></text>
+         x="33.339298"
+         y="72.809761">Controllers</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="67.316101"
-       y="65.984673"
+       x="33.440556"
+       y="76.240059"
        id="text6472-6-6-4-2"><tspan
          sodipodi:role="line"
          id="tspan6470-3-2-1-2"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="67.316101"
-         y="65.984673">PID.py, Position.py</tspan></text>
-    <rect
-       style="fill:#cedafe;fill-opacity:1;stroke:#1e4598;stroke-width:0.229106"
-       id="rect846-7-8-9"
-       width="30.526814"
-       height="8.0601454"
-       x="107.02538"
-       y="36.730064" />
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="109.13029"
-       y="40.083042"
-       id="text6472-5-5-2"><tspan
-         sodipodi:role="line"
-         id="tspan6470-9-7-5"
-         style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="109.13029"
-         y="40.083042">Modified plugins </tspan></text>
-    <text
-       xml:space="preserve"
-       style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="108.33494"
-       y="43.51334"
-       id="text6472-6-6-4-40"><tspan
-         sodipodi:role="line"
-         id="tspan6470-3-2-1-5"
-         style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="108.33494"
-         y="43.51334">../../../MultiRotorParams.hpp</tspan></text>
+         x="33.440556"
+         y="76.240059">VelocityPid.py, UnityPID.py</tspan></text>
     <rect
        style="fill:#cedafe;fill-opacity:1;stroke:#1e4598;stroke-width:0.230774"
        id="rect846-7-8-8"
        width="30.979349"
        height="8.0584774"
-       x="194.43387"
-       y="58.8344" />
+       x="181.61479"
+       y="70.653816" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="196.53795"
-       y="62.186546"
+       x="183.71887"
+       y="74.005959"
        id="text6472-5-5-9"><tspan
          sodipodi:role="line"
          id="tspan6470-9-7-6"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="196.53795"
-         y="62.186546">Ros Wrapper</tspan></text>
+         x="183.71887"
+         y="74.005959">Ros Wrapper</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="196.63921"
-       y="65.616844"
+       x="183.82013"
+       y="77.436256"
        id="text6472-6-6-4-4"><tspan
          sodipodi:role="line"
          id="tspan6470-3-2-1-3"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="196.63921"
-         y="65.616844">simpleflight_ros_wrapper.py</tspan></text>
+         x="183.82013"
+         y="77.436256">RosAirSimController.py</tspan></text>
     <rect
        style="fill:#cedafe;fill-opacity:1;stroke:#1e4598;stroke-width:0.216681"
        id="rect846-7-8-3"
        width="27.263525"
        height="8.0725698"
-       x="157.72951"
-       y="81.942017" />
+       x="144.91043"
+       y="93.761429" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="160.33185"
-       y="85.401695"
+       x="147.51277"
+       y="97.221107"
        id="text6472-5-5-8"><tspan
          sodipodi:role="line"
          id="tspan6470-9-7-8"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="160.33185"
-         y="85.401695">Data generation</tspan></text>
+         x="147.51277"
+         y="97.221107">Client</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="160.78549"
-       y="88.432526"
+       x="147.96642"
+       y="100.25194"
        id="text6472-6-6-4-3"><tspan
          sodipodi:role="line"
          id="tspan6470-3-2-1-1"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="160.78549"
-         y="88.432526">data_gen.py</tspan></text>
+         x="147.96642"
+         y="100.25194">e.g. SimClient.py</tspan></text>
     <rect
        style="fill:#cedafe;fill-opacity:1;stroke:#1e4598;stroke-width:0.216681"
        id="rect846-7-8-3-3"
        width="27.263525"
        height="8.0725698"
-       x="195.23189"
-       y="82.008896" />
+       x="182.41281"
+       y="93.828308" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="197.83423"
-       y="85.468575"
+       x="185.01515"
+       y="97.287987"
        id="text6472-5-5-8-3"><tspan
          sodipodi:role="line"
          id="tspan6470-9-7-8-8"
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="197.83423"
-         y="85.468575">Ros node</tspan></text>
+         x="185.01515"
+         y="97.287987">Ros node</tspan></text>
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
-       x="198.28787"
-       y="88.499405"
+       x="185.4688"
+       y="100.31882"
        id="text6472-6-6-4-3-6"><tspan
          sodipodi:role="line"
          id="tspan6470-3-2-1-1-0"
          style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:2.11667px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
-         x="198.28787"
-         y="88.499405">airsim_flight_node.py</tspan></text>
+         x="185.4688"
+         y="100.31882">airsim_flight_node.py</tspan></text>
     <path
-       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker25488)"
-       d="M 136.42866,82.093372 157.48362,67.008447"
-       id="path25484" />
-    <path
-       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker25555)"
-       d="M 172.09726,81.952587 157.48362,67.008447"
-       id="path25529" />
-    <path
-       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow2Lstart)"
-       d="m 194.46823,62.82885 -8.94372,0.12028 v 0"
+       style="fill:none;stroke:#000000;stroke-width:0.299905px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow2Lstart)"
+       d="m 181.01573,74.388652 -14.01803,0.0986 v 0"
        id="path77888" />
     <path
+       style="fill:none;stroke:#000000;stroke-width:0.354442px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#Arrow2Lstart-2)"
+       d="m 116.18354,72.188847 -22.439506,0.08603 v 0"
+       id="path77888-9" />
+    <path
        style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker78139)"
-       d="M 208.97967,81.973092 V 66.95253"
+       d="M 196.1606,93.792507 V 78.771945"
        id="path78033" />
     <path
        style="fill:none;stroke:#000000;stroke-width:0.260885px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker113760)"
-       d="m 43.731811,79.625404 0.04534,-12.204293"
+       d="m 82.737412,89.87264 0.04534,-12.204293"
        id="path113632" />
     <rect
-       style="fill:none;fill-opacity:1;stroke:#1e4598;stroke-width:0.265;stroke-miterlimit:4;stroke-dasharray:0.265, 0.795;stroke-dashoffset:0"
+       style="fill:none;fill-opacity:1;stroke:#1e4598;stroke-width:0.29627;stroke-miterlimit:4;stroke-dasharray:0.29627, 0.88881;stroke-dashoffset:0"
        id="rect113790"
-       width="76.577766"
-       height="44.96397"
-       x="25.596804"
-       y="51.804016" />
+       width="77.336487"
+       height="55.650185"
+       x="24.822449"
+       y="51.819653" />
     <rect
-       style="fill:none;fill-opacity:1;stroke:#1e4598;stroke-width:0.333376;stroke-miterlimit:4;stroke-dasharray:0.333376, 1.00013;stroke-dashoffset:0"
+       style="fill:none;fill-opacity:1;stroke:#1e4598;stroke-width:0.351229;stroke-miterlimit:4;stroke-dasharray:0.351229, 1.05369;stroke-dashoffset:0"
        id="rect113790-1"
-       width="121.39557"
-       height="44.889042"
-       x="107.03246"
-       y="51.84148" />
+       width="108.91483"
+       height="55.53511"
+       x="107.04139"
+       y="51.850407" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;line-height:1.25;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;fill:#000000;fill-opacity:1;stroke:none;stroke-width:0.264583"
@@ -498,5 +509,13 @@
          style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:2.82222px;font-family:'CMU Serif';-inkscape-font-specification:'CMU Serif, Bold';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;stroke-width:0.264583"
          x="108.4743"
          y="54.706898">AirSim interface</tspan></text>
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker78139-8)"
+       d="M 123.4884,93.716132 V 78.69557"
+       id="path78033-1" />
+    <path
+       style="fill:none;stroke:#000000;stroke-width:0.264583px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1;marker-end:url(#marker78139-6)"
+       d="M 152.48394,93.700274 V 78.679712"
+       id="path78033-0" />
   </g>
 </svg>
