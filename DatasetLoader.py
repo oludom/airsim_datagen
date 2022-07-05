@@ -29,7 +29,7 @@ import numpy as np
 class RacetrackLoader:
 
     def __init__(self, dataset_basepath: str, dataset_basename: str, raceTrackName: str,
-                 localTrajectoryLength: int = 3):
+                 localTrajectoryLength: int = 3, skipLastXImages=0):
         '''
         INIT VALUES
         '''
@@ -58,9 +58,11 @@ class RacetrackLoader:
 
         self.raceTrackName = raceTrackName
 
+        self.skipLastXImages = -1 if skipLastXImages == 0 else skipLastXImages*-1
+
     def __iter__(self):
 
-        for i, frame in enumerate(self.data):
+        for i, frame in enumerate(self.data[:self.skipLastXImages]):
             # load left image
             lipath = self.DATASET_PATH_LEFT + "/" + frame['image_name'] + ".png"
 
@@ -120,7 +122,7 @@ class RacetrackLoader:
 class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,  # imageScale in percent of original image size
-                 imageTransforms=transforms.Compose([transforms.ToTensor])
+                 imageTransforms=None, skipLastXImages=0
                  ):
 
         # create image transform to transform image to tensor
@@ -139,7 +141,7 @@ class RaceTracksDataset(Dataset):
             if loadedTracks <= skipTracks:
                 continue
             trackname = Path(path).parts[-1]
-            self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength))
+            self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength, skipLastXImages=skipLastXImages))
 
         self.data = list(chain(*self.rtLoaders))
 
@@ -147,6 +149,7 @@ class RaceTracksDataset(Dataset):
         self.yawMaxCommand = yawMaxCommand
         self.imageScale = imageScale
         self.grayScale = grayScale
+        self.first = True
 
     def __getitem__(self, index):
         ts, waypoints, pose, imu, lipath = self.data[index]
@@ -171,8 +174,13 @@ class RaceTracksDataset(Dataset):
         if self.grayScale:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-
+            # if self.first:
+            #     cv2.imshow("test", image)
+            #     self.first = False
+            #     cv2.waitKey(0)
+            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # image = image.transpose(2,0,1)
+            pass
         # scale down
         if not self.imageScale == 100:
             scale_percent = self.imageScale  # percent of original size
@@ -188,6 +196,8 @@ class RaceTracksDataset(Dataset):
         image = transforms.Compose([
             transforms.ToTensor(),
         ])(image)
+        # image = torch.from_numpy(image)
+        # image = image.float().div(255)
 
         # if not self.grayScale:
         #     # image = torch.tensor(image)
@@ -196,7 +206,8 @@ class RaceTracksDataset(Dataset):
 
         # convert to torch.Tensor
 
-        image = self.imageTransform(image)
+        if self.imageTransform:
+            image = self.imageTransform(image)
 
         return image
 

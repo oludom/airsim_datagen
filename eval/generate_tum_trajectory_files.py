@@ -18,7 +18,7 @@ device = 'cpu'
 dataset_basepath = "/media/micha/eSSD/datasets"
 # dataset_basepath = "/home/micha/dev/datasets/droneracing"
 # dataset_basepath = "/data/datasets"
-dataset_basename = "X4Gates_Circle_0"
+dataset_basename = "X4Gates_Circle_right"
 # dataset_basename = "X4Gates_Circle_1"
 # dataset_basename = "X4Gates_Circle_2"
 
