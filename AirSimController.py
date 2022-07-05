@@ -33,7 +33,7 @@ import MAVeric.trajectory_planner as maveric
 '''
 class AirSimController:
 
-    def __init__(self, raceTrackName):
+    def __init__(self, raceTrackName, createDataset=True):
 
         ''' 
         INIT VALUES 
@@ -63,24 +63,28 @@ class AirSimController:
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
 
-        '''
-        CREATE DATASET FOLDERS
-        '''
-        # root path of the data set to be created
-        self.createFolder(self.DATASET_PATH_SUPER)
-        self.createFolder(self.DATASET_PATH)
-        # left images will be saved here
-        self.createFolder(self.DATASET_PATH_LEFT)
-        # right images will be saved here
-        self.createFolder(self.DATASET_PATH_RIGHT)
-        # depth images will be saved here
-        self.createFolder(self.DATASET_PATH_DEPTH)
+        self.createDataset = createDataset
 
-        '''
-        CREATE DATASET OUTPUT FILE
-        '''
-        self.outputFile = open(self.DATASET_PATH_FILE, "w")
-        print('{\n"data": [', file=self.outputFile)
+        if createDataset:
+
+            '''
+            CREATE DATASET FOLDERS
+            '''
+            # root path of the data set to be created
+            self.createFolder(self.DATASET_PATH_SUPER)
+            self.createFolder(self.DATASET_PATH)
+            # left images will be saved here
+            self.createFolder(self.DATASET_PATH_LEFT)
+            # right images will be saved here
+            self.createFolder(self.DATASET_PATH_RIGHT)
+            # depth images will be saved here
+            self.createFolder(self.DATASET_PATH_DEPTH)
+
+            '''
+            CREATE DATASET OUTPUT FILE
+            '''
+            self.outputFile = open(self.DATASET_PATH_FILE, "w")
+            print('{\n"data": [', file=self.outputFile)
 
         # imu cache for faster data collection
         self.imuCache = []
@@ -89,17 +93,18 @@ class AirSimController:
     # gates: np.array of shape [x, y, z, yaw]
     # data: dict - key value
     def saveConfigToDataset(self, gates, data={}):
-        dconfigfile = open(self.DATASET_PATH + "/config.json", "w")
-        self.configFile.seek(0)
-        dconfig = json.load(self.configFile)
-        dconfig['gates']['poses'] = gates.tolist()
-        dconfig['gates']['number_configurations'] = 1
+        if self.createDataset:
+            dconfigfile = open(self.DATASET_PATH + "/config.json", "w")
+            self.configFile.seek(0)
+            dconfig = json.load(self.configFile)
+            dconfig['gates']['poses'] = gates.tolist()
+            dconfig['gates']['number_configurations'] = 1
 
-        for key, value in data.items():
-            dconfig[key] = value
+            for key, value in data.items():
+                dconfig[key] = value
 
-        json.dump(dconfig, dconfigfile, indent="  ")
-        dconfigfile.close()
+            json.dump(dconfig, dconfigfile, indent="  ")
+            dconfigfile.close()
 
 
     def loadConfig(self, configFile):
@@ -116,9 +121,10 @@ class AirSimController:
     '''
     def close(self):
         self.configFile.close()
-        # ending of json file
-        print(']\n}', file=self.outputFile)
-        self.outputFile.close()
+        if self.createDataset:
+            # ending of json file
+            print(']\n}', file=self.outputFile)
+            self.outputFile.close()
 
 
     # get current position of UAV from simulation
@@ -199,20 +205,22 @@ class AirSimController:
         res = self.client.simGetImages(
             [
                 airsim.ImageRequest("front_left", airsim.ImageType.Scene),
-                airsim.ImageRequest("front_right", airsim.ImageType.Scene),
+                # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
                 airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
             ]
         )
         left = res[0]
-        right = res[1]
-        depth = res[2]
+        # right = res[1]
+        depth = res[1]
 
-        # save left image
-        airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)
-        # save right image
-        # airsim.write_file(self.DATASET_PATH_RIGHT + f"/{cfname}.png", right.image_data_uint8)
-        # save depth as portable float map
-        airsim.write_pfm(self.DATASET_PATH_DEPTH + f"/{cfname}.pfm", airsim.get_pfm_array(depth))
+
+        if self.createDataset:
+            # save left image
+            airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)
+            # save right image
+            # airsim.write_file(self.DATASET_PATH_RIGHT + f"/{cfname}.png", right.image_data_uint8)
+            # save depth as portable float map
+            airsim.write_pfm(self.DATASET_PATH_DEPTH + f"/{cfname}.pfm", airsim.get_pfm_array(depth))
 
         ts = self.captureIMU()
         imu = self.imuCache
@@ -230,7 +238,8 @@ class AirSimController:
             "pose": pos,
             "imu": imu
         }
-        print(f"{json.dumps(entry, indent=1)},", file=self.outputFile)
+        if self.createDataset:
+            print(f"{json.dumps(entry, indent=1)},", file=self.outputFile)
 
 
     def captureIMU(self):
