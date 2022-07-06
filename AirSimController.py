@@ -123,6 +123,10 @@ class AirSimController:
         self.configFile.close()
         if self.createDataset:
             # ending of json file
+            self.outputFile.flush()
+            # remove last comma
+            l = self.outputFile.tell()
+            self.outputFile.seek(l-2)
             print(']\n}', file=self.outputFile)
             self.outputFile.close()
 
@@ -201,22 +205,38 @@ class AirSimController:
         # current frame name
         cfname = "image" + str(idx)
 
-        # get images from AirSim API
-        res = self.client.simGetImages(
-            [
-                airsim.ImageRequest("front_left", airsim.ImageType.Scene),
-                # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
-                airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
-            ]
-        )
-        left = res[0]
-        # right = res[1]
-        depth = res[1]
+        # AirSim API rarely returns empty image data
+        # 'and True' emulates a do while loop
+        loopcount = 0
+        while(self.createDataset and True):
 
+            # get images from AirSim API
+            res = self.client.simGetImages(
+                [
+                    airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
+                    # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
+                    airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
+                ]
+            )
+            left = res[0]
+            # right = res[1]
+            depth = res[1]
+
+
+            # save left image
+            # airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)
+            img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8) # get numpy array
+            img_rgb = img1d.reshape(left.height, left.width, 3) # reshape array to 3 channel image array H X W X 3
+        
+            # check if image contains data, repeat request if empty
+            if img_rgb.size:
+                break  # end of do while loop
+            else:
+                loopcount += 1
+                print("airsim returned empty image." + str(loopcount))
 
         if self.createDataset:
-            # save left image
-            airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)
+            cv2.imwrite(self.DATASET_PATH_LEFT + f"/{cfname}.png", img_rgb) # write to png
             # save right image
             # airsim.write_file(self.DATASET_PATH_RIGHT + f"/{cfname}.png", right.image_data_uint8)
             # save depth as portable float map
@@ -307,7 +327,7 @@ class AirSimController:
 
         if traj:
             # call maveric to get trajectory
-            return maveric.planner(waypoints, timestep=timestep)
+            return maveric.planner(waypoints)  # timestep=timestep
         else:
             # return list of waypoints
             return waypoints 

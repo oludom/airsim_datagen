@@ -1,5 +1,5 @@
 {
-    "debug": false,
+    "debug": true,
     "framerate": 30,
     "imuRate": 400,
     "pidRate": 30,
@@ -22,7 +22,7 @@
             "yaw": [0, 0]
         },
         "grid_size": 3,
-        "number_configurations": 50
+        "number_configurations": 10
     }
 }
 

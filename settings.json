@@ -8,8 +8,8 @@
     "CaptureSettings": [
       {
           "ImageType": 0,
-          "Width": 672,
-          "Height": 376,
+          "Width": 300,
+          "Height": 200,
           "FOV_Degrees": 87,
           "AutoExposureSpeed": 100,
           "AutoExposureBias": 0,
@@ -38,32 +38,21 @@
           "CaptureSettings": [
             {
               "ImageType": 0,
-              "Width": 672,
-              "Height": 376,
+              "Width": 300,
+              "Height": 200,
               "FOV_Degrees": 90
             }
           ],
           "X": 0.50, "Y": -0.06, "Z": 0.10,
           "Pitch": 0.0, "Roll": 0.0, "Yaw": 0.0
         },
-        "front_right": {
-          "CaptureSettings": [
-            {
-              "ImageType": 0,
-              "Width": 672,
-              "Height": 376
-            }
-          ],
-        "X": 0.50, "Y": 0.06, "Z": 0.10,
-        "Pitch": 0.0, "Roll": 0.0, "Yaw": 0.0
-        },
         "depth_cam": {
           "CaptureSettings": [
             {
+              "Width": 300,
+              "Height": 200,
               "PublishToRos": 1,
               "ImageType": 3,
-              "Width": 672,
-              "Height": 376,
               "DepthOfFieldFstop": 2.8,
               "DepthOfFieldFocalDistance": 200.0, 
               "DepthOfFieldFocalRegion": 200.0,
@@ -96,12 +85,6 @@
       "WindowID": 0,
       "ImageType": 0,
       "CameraName": "front_left",
-      "Visible": true
-    },
-    {
-      "WindowID": 1,
-      "ImageType": 0,
-      "CameraName": "front_right",
       "Visible": true
     },
     {
