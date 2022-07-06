@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import sys
+sys.path.append('../')
+
 import json
 import math
 
@@ -119,7 +122,7 @@ class RacetrackLoader:
 class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,  # imageScale in percent of original image size
-                 imageTransforms=transforms.Compose([transforms.ToTensor])
+                 imageTransforms=transforms.Compose([])
                  ):
 
         # create image transform to transform image to tensor
@@ -170,7 +173,8 @@ class RaceTracksDataset(Dataset):
         if self.grayScale:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            pass
 
         # scale down
         if not self.imageScale == 100:
