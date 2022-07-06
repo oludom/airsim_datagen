@@ -1,5 +1,8 @@
 #!/usr/bin/env python
 
+import sys
+sys.path.append('../')
+
 import json
 import math
 
@@ -173,13 +176,9 @@ class RaceTracksDataset(Dataset):
         if self.grayScale:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         else:
-            # if self.first:
-            #     cv2.imshow("test", image)
-            #     self.first = False
-            #     cv2.waitKey(0)
             # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            # image = image.transpose(2,0,1)
             pass
+        
         # scale down
         if not self.imageScale == 100:
             scale_percent = self.imageScale  # percent of original size

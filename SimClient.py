@@ -140,6 +140,7 @@ class SimClient(AirSimController):
         cwpindex = 0
         cimageindex = 0
 
+        self.c.clear()
 
         # controll loop
         while mission:
