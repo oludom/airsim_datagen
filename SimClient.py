@@ -94,18 +94,18 @@ class SimClient(AirSimController):
         time.sleep(3)
 
         # init pid controller for velocity control
-        pp = 2
-        dd = .2
-        ii = .05
-
         # pp = 2
-        # dd = .9
-        # ii = .9
+        # dd = .2
+        # ii = .05
+
+        pp = 4
+        dd = .9
+        ii = 0.0
         
         Kp = np.array([pp, pp, pp])
         Ki = np.array([ii, ii, ii])
         Kd = np.array([dd, dd, dd])
-        yaw_gain = np.array([1, 0, 2])
+        yaw_gain = 0.1 * np.array([1, 0, 1])  #P, I, D
 
         distance_threshold = 0.01
         angle_threshold = 0.1
@@ -172,7 +172,8 @@ class SimClient(AirSimController):
             self.client.simPlotPoints([airsim.Vector3r(current_drone_pose[0], current_drone_pose[1], current_drone_pose[2])], color_rgba=[1.0, 0.0, 1.0, 1.0],
                                       size=10.0, duration=self.timestep, is_persistent=False)
 
-
+            self.client.simPlotPoints([airsim.Vector3r(current_drone_pose[0], current_drone_pose[1], current_drone_pose[2])], color_rgba=[1.0, 0.6, 1.0, 1.0],
+                                      size=10.0, duration=self.timestep, is_persistent=True)
 
 
             if self.config.debug:
