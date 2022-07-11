@@ -49,7 +49,7 @@ class SimClient(AirSimController):
         self.gateConfigurations = []
         self.currentGateConfiguration = 0
 
-        # self.timestep = 1./self.config.framerate
+        self.timestep = 1./self.config.framerate
 
 
     '''
@@ -97,6 +97,10 @@ class SimClient(AirSimController):
         pp = 2
         dd = .2
         ii = .05
+
+        # pp = 2
+        # dd = .9
+        # ii = .9
         
         Kp = np.array([pp, pp, pp])
         Ki = np.array([ii, ii, ii])
@@ -125,6 +129,7 @@ class SimClient(AirSimController):
         # show trajectory
         if showMarkers:
             self.client.simPlotPoints(path, color_rgba=[1.0, 0.0, 0.0, .2], size = 10.0, duration = -1.0, is_persistent = True)
+
 
         lastWP = time.time()
         lastImage = time.time()
@@ -161,6 +166,13 @@ class SimClient(AirSimController):
             nextImage = tn - lastImage > timePerImage
             nextIMU = tn - lastIMU > timePerIMU
             nextPID = tn - lastPID > timePerPID
+
+
+            current_drone_pose = self.getPositionUAV()
+            self.client.simPlotPoints([airsim.Vector3r(current_drone_pose[0], current_drone_pose[1], current_drone_pose[2])], color_rgba=[1.0, 0.0, 1.0, 1.0],
+                                      size=10.0, duration=self.timestep, is_persistent=False)
+
+
 
 
             if self.config.debug:
@@ -435,7 +447,8 @@ if __name__ == "__main__":
             sc.loadNextGatePosition()
                 
             # fly mission
-            sc.gateMission(False)
+            # sc.gateMission(False)
+            sc.gateMission(True)
 
             sc.loadGatePositions(sc.config.gates['poses'])
             sc.reset()

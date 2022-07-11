@@ -33,7 +33,7 @@ import MAVeric.trajectory_planner as maveric
 '''
 class AirSimController:
 
-    def __init__(self, raceTrackName, createDataset=True):
+    def __init__(self, raceTrackName, createDataset=False):
 
         ''' 
         INIT VALUES 
