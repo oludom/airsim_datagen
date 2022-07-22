@@ -24,6 +24,8 @@ import pprint
 import curses
 import torch
 import torchvision.transforms as transforms
+import torch.backends.cudnn as cudnn
+import torch.nn as nn
 
 import os
 import time
@@ -33,7 +35,7 @@ import time
 import cv2
 from copy import deepcopy
 
-import imitation.dn as dn
+import imitation.ResNet8 as resnet8
 
 
 # import MAVeric polynomial trajectory planner
@@ -57,7 +59,11 @@ class NetworkTestClient(SimClient):
         self.gateConfigurations = []
         self.currentGateConfiguration = 0
 
-        self.model = dn.DenseNetCustom()
+        self.model = resnet8.ResNet8(input_dim=3, output_dim=4)
+        if device=='cuda':
+            self.model = nn.DataParallel(self.model)
+            cudnn.benchmark = True
+
         self.model.load_state_dict(torch.load(modelPath))
 
         self.device = device
@@ -128,7 +134,7 @@ class NetworkTestClient(SimClient):
 
                 # predict vector with network
                 pred = self.model(images)
-                pred = list(pred[0]*.3)
+                pred = list(pred[0]*5)
 
                 cimageindex +=1
 
@@ -217,12 +223,13 @@ class NetworkTestClient(SimClient):
             transforms.ToTensor(),
         ])(image)
 
-        image = dn.preprocess(image)
+        # image = dn.preprocess(image)
         return image
 
 if __name__ == "__main__":
 
     import contextlib
 
-    with contextlib.closing(NetworkTestClient("/home/kristoffer/dev/imitation/datagen/eval/runs/DenseNetCustom_bs=64_lt=MSE_lr=0.01_c=run3/best.pth", device="cuda")) as nc:
+    with contextlib.closing(NetworkTestClient("/home/kristoffer/dev/imitation/datagen/eval/runs/ResNet8_bs=32_lt=MSE_lr=0.01_c=run0/best.pth", device="cuda")) as nc:
+        nc.loadGatePositions(nc.config.gates['poses'])
         nc.run()

@@ -200,7 +200,7 @@ class AirSimController:
     # capture and save three images, left and right rgb, depth
     # wpidx: index of current waypoint, that is targeted by controller
     # idx: image index, used for naming the images, should count up to prevent overwriting existing images
-    def captureAndSaveImages(self, wpidx, idx=0):
+    def captureAndSaveImages(self, wpidx, idx=0, body_velocity_yaw=[0.,0.,0.,0.]):
 
         # current frame name
         cfname = "image" + str(idx)
@@ -250,12 +250,17 @@ class AirSimController:
         # get UAV pose
         pos = list(self.getPositionUAV())
         
+        # make sure the values are json serializable (e.g. numpy int64 is not)
+        body_velocity_yaw = [float(el) for el in body_velocity_yaw]
+        body_velocity_yaw[3] = radians(body_velocity_yaw[3])
+
         # write entry to output file
         entry = {
             "image_name": cfname,
             "time_stamp": ts,
             "waypoint_index": wpidx,
             "pose": pos,
+            "body_velocity_yaw_pid": body_velocity_yaw,
             "imu": imu
         }
         if self.createDataset:
