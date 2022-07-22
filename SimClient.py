@@ -23,6 +23,8 @@ import time
 import cv2
 from copy import deepcopy
 
+from util import *
+
 
 # import MAVeric polynomial trajectory planner
 import MAVeric.trajectory_planner as maveric
@@ -49,7 +51,9 @@ class SimClient(AirSimController):
         self.gateConfigurations = []
         self.currentGateConfiguration = 0
 
-        # self.timestep = 1./self.config.framerate
+        self.timestep = 1./self.config.framerate
+
+        self.vel_limit = 3
 
 
     '''
@@ -80,6 +84,10 @@ class SimClient(AirSimController):
     - follow trajectory with sampled waypoints
     showMarkers: boolean, if true, trajectory will be visualized with red markers in simulation
     captureImages: boolean, if true, each iteration will capture a frame of each camera, simulation is paused for this
+
+    variable name prefix:
+    W: coordinates in world frame
+    B: coordinates in body frame (drone/uav)
     '''
     def gateMission(self, showMarkers=True, captureImages=True):
 
@@ -91,40 +99,42 @@ class SimClient(AirSimController):
         # takeoff
         self.client.takeoffAsync().join()
 
+        # make sure drone is not drifting anymore after takeoff
         time.sleep(3)
 
         # init pid controller for velocity control
         pp = 2
         dd = .2
-        ii = .05
+        ii = .0
         
         Kp = np.array([pp, pp, pp])
         Ki = np.array([ii, ii, ii])
         Kd = np.array([dd, dd, dd])
-        yaw_gain = np.array([1, 0, 2])
+        yaw_gain = np.array([.2, 0., 25])  # [.25, 0, 0.25]
 
         distance_threshold = 0.01
         angle_threshold = 0.1
 
         ctrl = VelocityPID(Kp, Ki, Kd, yaw_gain, distance_threshold, angle_threshold)
 
-        firstGoal = self.getState()
-        ctrl.setGoal(firstGoal)
+        # set initial state and goal to 0
+        ctrl.setState([0,0,0,0])
+        ctrl.setGoal([0,0,0,0])
 
         # get trajectory
-        timed_waypoints, trajectory = self.generateTrajectoryFromCurrentGatePositions(timestep=1)
+        Wtimed_waypoints, Wtrajectory = self.generateTrajectoryFromCurrentGatePositions(timestep=1)
 
-        path, pathComplete = self.convertTrajectoryToWaypoints(timed_waypoints, trajectory, evaltime=self.config.roundtime)
+        Wpath, WpathComplete = self.convertTrajectoryToWaypoints(Wtimed_waypoints, Wtrajectory, evaltime=self.config.roundtime)
 
         # save current configuration and trajectory in data set folder
         data = {
-            "waypoints": pathComplete
+            "waypoints": WpathComplete
         }
         self.saveConfigToDataset(gateConfig, data)
 
         # show trajectory
         if showMarkers:
-            self.client.simPlotPoints(path, color_rgba=[1.0, 0.0, 0.0, .2], size = 10.0, duration = -1.0, is_persistent = True)
+            self.client.simPlotPoints(Wpath, color_rgba=[1.0, 0.0, 0.0, .2], size = 10.0, duration = -1.0, is_persistent = True)
 
         lastWP = time.time()
         lastImage = time.time()
@@ -132,15 +142,18 @@ class SimClient(AirSimController):
         lastPID = time.time()
 
 
-        timePerWP = float(self.config.roundtime) / len(pathComplete)
+        timePerWP = float(self.config.roundtime) / len(WpathComplete)
         timePerImage = 1./float(self.config.framerate)
         timePerIMU = 1./float(self.config.imuRate)
         timePerPID = 1./float(self.config.pidRate)
 
         cwpindex = 0
         cimageindex = 0
+        if self.config.debug:
+            self.c.clear()
 
-        self.c.clear()
+        def angleDifference(a:float, b:float):
+            return (a-b + 540) % 360 -180
 
         # controll loop
         while mission:
@@ -149,7 +162,7 @@ class SimClient(AirSimController):
             #     self.c.clear()
 
             # get and plot current waypoint (blue)
-            wp = pathComplete[cwpindex]
+            wp = WpathComplete[cwpindex]
 
             # show markers if applicable
             self.showMarkers(showMarkers, wp)
@@ -162,6 +175,13 @@ class SimClient(AirSimController):
             nextIMU = tn - lastIMU > timePerIMU
             nextPID = tn - lastPID > timePerPID
 
+            if showMarkers:
+                current_drone_pose = self.getPositionUAV()
+                self.client.simPlotPoints([airsim.Vector3r(current_drone_pose[0], current_drone_pose[1], current_drone_pose[2])], color_rgba=[1.0, 0.0, 1.0, 1.0],
+                                        size=10.0, duration=self.timestep, is_persistent=False)
+
+                self.client.simPlotPoints([airsim.Vector3r(current_drone_pose[0], current_drone_pose[1], current_drone_pose[2])], color_rgba=[1.0, 0.6, 1.0, .5],
+                                        size=10.0, duration=self.timestep, is_persistent=True)
 
             if self.config.debug:
                 if nextWP:
@@ -173,24 +193,6 @@ class SimClient(AirSimController):
                 if nextPID:
                     self.c.addstr(6, 0, f"pid: {format(1./float(tn - lastPID), '.4f')}hz")
 
-                # self.c.addstr(3, 0, f"wpt: {format(float(tn - lastWP), '.4f')}")
-                # self.c.addstr(4, 0, f"img: {format(float(tn - lastImage), '.4f')}")
-                # self.c.addstr(5, 0, f"imu: {format(float(tn - lastIMU), '.4f')}")
-                # self.c.addstr(6, 0, f"pid: {format(float(tn - lastPID), '.4f')}")
-
-
-            # wait remaining time until time step has passed
-            # remainingTime = (self.timestep) - dt
-            # if remainingTime > 0:
-            #     time.sleep(remainingTime)
-
-            # # get current time again
-            # tn = time.time()
-            # # new time delta
-            # dt = tn - lastTs
-
-            # calculate actual frequency
-            # hz = 1./float(dt)
 
             if nextIMU:
                 self.captureIMU()
@@ -201,8 +203,10 @@ class SimClient(AirSimController):
                 prepause = time.time()
                 self.client.simPause(True)
 
+                Bvel, Byaw = ctrl.getVelocityYaw()
+
                 # save images of current frame
-                self.captureAndSaveImages(cwpindex, cimageindex)
+                self.captureAndSaveImages(cwpindex, cimageindex, [*Bvel, Byaw])
                 cimageindex +=1
 
                 # unpause simulation
@@ -224,21 +228,34 @@ class SimClient(AirSimController):
             if nextPID:
 
                 # get current state
-                cstate = self.getState()
+                Wcstate = self.getState()
                 # convert yaw to degree
-                cstate[3] = degrees(cstate[3])
+                # cstate[3] = degrees(cstate[3])
                 # inform pid controller about state
-                ctrl.setState(cstate)
+                # removed: controller working in drone body coordinate system, therefore drone position always 0
+                # ctrl.setState(cstate)
 
                 # set goal state of pid controller
-                ctrl.setGoal(wp[:4])
+                Bgoal = vector_world_to_body(wp[:3], Wcstate[:3], Wcstate[3])
+                # print(f"Bgoal")
+                # desired yaw angle is target point yaw angle world minus current uav yaw angle world 
+                ByawGoal = angleDifference(wp[3], degrees(Wcstate[3]))
+                print(f"angle target: {ByawGoal:5.4f}")
+                ctrl.setGoal([*Bgoal, ByawGoal])
                 # update pid controller
                 ctrl.update(tn - lastPID)
                 # get current pid output´
-                vel, yaw = ctrl.getVelocityYaw()
+                Bvel, Byaw = ctrl.getVelocityYaw()
+                # print(f"body  velocity: {Bvel}")
+
+                # rotate velocity command such that it is in world coordinates
+                Wvel = vector_body_to_world(Bvel, [0,0,0], Wcstate[3])
+                # print(f"world velocity: {Wvel}")
 
                 # add pid output for yaw to current yaw position
-                yaw = cstate[3] + yaw
+                Wyaw = degrees(Wcstate[3]) + Byaw
+                printwpyaw = 180 + wp[3] if wp[3] < - 180 else wp[3]
+                # print(f"cyaw: {degrees(Wcstate[3]):7.4f}, wpyaw: {printwpyaw:7.4f}, byaw req: {Byaw:7.4f}, abs yaw: {Wyaw:7.4f}")
 
                 '''
                 Args:
@@ -250,7 +267,7 @@ class SimClient(AirSimController):
                     yaw_mode (YawMode, optional):
                     vehicle_name (str, optional): Name of the multirotor to send this command to
                 '''
-                self.client.moveByVelocityAsync(float(vel[0]), float(vel[1]), float(vel[2]), duration=float(timePerPID), yaw_mode=airsim.YawMode(False, yaw))
+                self.client.moveByVelocityAsync(float(Wvel[0]), float(Wvel[1]), float(Wvel[2]), duration=float(timePerPID), yaw_mode=airsim.YawMode(False, Wyaw))
 
                 # save last PID time
                 lastPID = tn
@@ -262,11 +279,11 @@ class SimClient(AirSimController):
 
 
             # increase current waypoint index if time per waypoint passed and if there are more waypoints available in path
-            if nextWP and len(pathComplete) > (cwpindex+1):
+            if nextWP and len(WpathComplete) > (cwpindex+1):
                 cwpindex = cwpindex + 1
                 lastWP = tn
             # end mission when no more waypoints available
-            if len(pathComplete) <= (cwpindex+1):
+            if len(WpathComplete) <= (cwpindex+1):
                 mission = False
         if showMarkers:
             # clear persistent markers
@@ -435,7 +452,7 @@ if __name__ == "__main__":
             sc.loadNextGatePosition()
                 
             # fly mission
-            sc.gateMission(False)
+            sc.gateMission(False, True)
 
             sc.loadGatePositions(sc.config.gates['poses'])
             sc.reset()
