@@ -1,5 +1,5 @@
-## AirSimController 
-This is the documentation for _'AirSimController.py'_.  
+## AirSimInterface
+This is the documentation for _'AirSimInterface.py'_.  
 This class connects to the AirSim API and provides helper functions to controll a multirotor in simulation and to create a structured data set. It is configured with _'config.json'_ and can be extended to add the execution of a mission to the simulation. 
 
 `.configFile`: contains the file handle to the _'config.json'_ congiguration file.  
