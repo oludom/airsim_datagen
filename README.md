@@ -1,7 +1,7 @@
 
-## AirSimController
+## AirSimInterface
 Controller class, holding connections to airsim  
-inherit from this class to create a client (as in SimClient.py). See [AirSimController.md](docs/AirSimController.md) for documentation.
+inherit from this class to create a client (as in SimClient.py). See [AirSimInterface.md](docs/AirSimInterface.md) for documentation.
 
 
 _'SimClient.py'_ is a runable example that collects a stereo/depth data set with a drone flying in the Unreal Lab environment through a gate race track. See [SimClient.md](docs/SimClient.md) for documentation.  

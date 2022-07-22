@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 '''
-CONTROLLER for simulation setup
+INTERFACE for simulation setup
 data collection with airsim and unreal for:
 simple_flight uav
 zed mini stereo camera
@@ -27,11 +27,12 @@ import cv2
 
 import MAVeric.trajectory_planner as maveric
 
-
 '''
 
 '''
-class AirSimController:
+
+
+class AirSimInterface:
 
     def __init__(self, raceTrackName, createDataset=True):
 
@@ -54,7 +55,6 @@ class AirSimController:
         self.DATASET_PATH_RIGHT = self.DATASET_PATH + "/image_right"
         self.DATASET_PATH_DEPTH = self.DATASET_PATH + "/image_depth"
 
-
         '''
         CONNECTION TO AIRSIM
         '''
@@ -66,7 +66,6 @@ class AirSimController:
         self.createDataset = createDataset
 
         if createDataset:
-
             '''
             CREATE DATASET FOLDERS
             '''
@@ -106,11 +105,11 @@ class AirSimController:
             json.dump(dconfig, dconfigfile, indent="  ")
             dconfigfile.close()
 
-
     def loadConfig(self, configFile):
         class ConfigLoader:
             def __init__(self, **data):
                 self.__dict__.update(data)
+
         data = json.load(configFile)
         self.config = ConfigLoader(**data)
 
@@ -119,6 +118,7 @@ class AirSimController:
     close all opened files here
     and reset simulation
     '''
+
     def close(self):
         self.configFile.close()
         if self.createDataset:
@@ -126,17 +126,19 @@ class AirSimController:
             self.outputFile.flush()
             # remove last comma
             l = self.outputFile.tell()
-            self.outputFile.seek(l-2)
+            self.outputFile.seek(l - 2)
             print(']\n}', file=self.outputFile)
             self.outputFile.close()
-
 
     # get current position of UAV from simulation
     # returns [x, y, z, qw, qx, qy, qz]
     def getPositionUAV(self):
         dronePose = self.client.simGetVehiclePose()
-        retVal = np.array([dronePose.position.x_val, dronePose.position.y_val, dronePose.position.z_val, dronePose.orientation.w_val, dronePose.orientation.x_val, dronePose.orientation.y_val, dronePose.orientation.z_val])
+        retVal = np.array(
+            [dronePose.position.x_val, dronePose.position.y_val, dronePose.position.z_val, dronePose.orientation.w_val,
+             dronePose.orientation.x_val, dronePose.orientation.y_val, dronePose.orientation.z_val])
         return retVal
+
     # get current position of UAV from simulation
     # returns airsim.Pose()
     def getPositionAirsimUAV(self):
@@ -153,8 +155,11 @@ class AirSimController:
     # returns [x, y, z, qw, qx, qy, qz]
     def getPositionGate(self, idx):
         gatePose = self.client.simGetObjectPose(self.config.gate_basename + str(idx))
-        retVal = np.array([gatePose.position.x_val, gatePose.position.y_val, gatePose.position.z_val, gatePose.orientation.w_val, gatePose.orientation.x_val, gatePose.orientation.y_val, gatePose.orientation.z_val])
+        retVal = np.array(
+            [gatePose.position.x_val, gatePose.position.y_val, gatePose.position.z_val, gatePose.orientation.w_val,
+             gatePose.orientation.x_val, gatePose.orientation.y_val, gatePose.orientation.z_val])
         return retVal
+
     # get position of gate with index idx
     # returns airsim.Pose()
     def getPositionAirsimGate(self, idx):
@@ -172,7 +177,6 @@ class AirSimController:
             print("setPositionGate: error gate idx not found.")
             return
         self.client.simSetObjectPose(self.config.gate_basename + str(idx), pose, True)
-
 
     # ImuData: type ImuData (airsim sensor message)
     # returns time stamp, dict of ImuData
@@ -196,11 +200,10 @@ class AirSimController:
         }
         return (ImuData.time_stamp, imu)
 
-
     # capture and save three images, left and right rgb, depth
     # wpidx: index of current waypoint, that is targeted by controller
     # idx: image index, used for naming the images, should count up to prevent overwriting existing images
-    def captureAndSaveImages(self, wpidx, idx=0, body_velocity_yaw=[0.,0.,0.,0.]):
+    def captureAndSaveImages(self, wpidx, idx=0, body_velocity_yaw=[0., 0., 0., 0.]):
 
         # current frame name
         cfname = "image" + str(idx)
@@ -208,7 +211,7 @@ class AirSimController:
         # AirSim API rarely returns empty image data
         # 'and True' emulates a do while loop
         loopcount = 0
-        while(self.createDataset and True):
+        while (self.createDataset and True):
 
             # get images from AirSim API
             res = self.client.simGetImages(
@@ -222,12 +225,11 @@ class AirSimController:
             # right = res[1]
             depth = res[1]
 
-
             # save left image
             # airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)
-            img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8) # get numpy array
-            img_rgb = img1d.reshape(left.height, left.width, 3) # reshape array to 3 channel image array H X W X 3
-        
+            img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8)  # get numpy array
+            img_rgb = img1d.reshape(left.height, left.width, 3)  # reshape array to 3 channel image array H X W X 3
+
             # check if image contains data, repeat request if empty
             if img_rgb.size:
                 break  # end of do while loop
@@ -236,7 +238,7 @@ class AirSimController:
                 print("airsim returned empty image." + str(loopcount))
 
         if self.createDataset:
-            cv2.imwrite(self.DATASET_PATH_LEFT + f"/{cfname}.png", img_rgb) # write to png
+            cv2.imwrite(self.DATASET_PATH_LEFT + f"/{cfname}.png", img_rgb)  # write to png
             # save right image
             # airsim.write_file(self.DATASET_PATH_RIGHT + f"/{cfname}.png", right.image_data_uint8)
             # save depth as portable float map
@@ -249,7 +251,7 @@ class AirSimController:
 
         # get UAV pose
         pos = list(self.getPositionUAV())
-        
+
         # make sure the values are json serializable (e.g. numpy int64 is not)
         body_velocity_yaw = [float(el) for el in body_velocity_yaw]
         body_velocity_yaw[3] = radians(body_velocity_yaw[3])
@@ -266,7 +268,6 @@ class AirSimController:
         if self.createDataset:
             print(f"{json.dumps(entry, indent=1)},", file=self.outputFile)
 
-
     def captureIMU(self):
         # get imu data
         imuData = self.client.getImuData()
@@ -278,12 +279,12 @@ class AirSimController:
     # can be used to influence trajectory generation to make drone go through the gates in a more straight line
     def create2WaypointsOffset(self, position, yaw, offset):
         # offset vector
-        ov1 = np.array([0,offset,0])
-        ov2 = np.array([0,offset,0])
+        ov1 = np.array([0, offset, 0])
+        ov2 = np.array([0, offset, 0])
         # rotation matrix z-axis
-        r1 = np.array([[cos(yaw), sin(yaw), 0], [-1*sin(yaw), cos(yaw), 0], [0, 0, 1]])
+        r1 = np.array([[cos(yaw), sin(yaw), 0], [-1 * sin(yaw), cos(yaw), 0], [0, 0, 1]])
         yaw += pi
-        r2 = np.array([[cos(yaw), sin(yaw), 0], [-1*sin(yaw), cos(yaw), 0], [0, 0, 1]])
+        r2 = np.array([[cos(yaw), sin(yaw), 0], [-1 * sin(yaw), cos(yaw), 0], [0, 0, 1]])
         rot1 = r1.dot(np.transpose(ov1))
         rot2 = r2.dot(np.transpose(ov2))
         pos1 = deepcopy(position) + rot1
@@ -296,7 +297,7 @@ class AirSimController:
     # else: 
     #   returns waypoints as list of [x, y, z, yaw], yaw in degrees
     def generateTrajectoryFromCurrentGatePositions(self, timestep=1, traj=True):
-        
+
         waypoints = []
 
         # uav current position is first waypoint
@@ -309,7 +310,7 @@ class AirSimController:
         waypoints.append(uavwp)
 
         # get current gate positions
-        for i in range(1,5):
+        for i in range(1, 5):
             # get gate position
             gp = self.getPositionGate(i)
             # self.printPose(gp)
@@ -329,15 +330,15 @@ class AirSimController:
         # add uavwp again - starting point as endpoint
         waypoints.append(uavwp)
 
-
         if traj:
             # call maveric to get trajectory
             return maveric.planner(waypoints)  # timestep=timestep
         else:
             # return list of waypoints
-            return waypoints 
+            return waypoints
 
-    # this is a sampling function which
+            # this is a sampling function which
+
     # converts waypoints, trajectory from generateTrajectoryFromCurrentGatePositions() to airsim.Vector3r list and [x,y,z,yaw,timestamp]
     # config.waypoints_per_segment waypoints will be generated for each segment of trajectory, where a segment is the polynomial between two waypoints (gates)
     def convertTrajectoryToWaypoints(self, waypoints, trajectory, evaltime=10):
@@ -348,24 +349,27 @@ class AirSimController:
         for i in range(len(trajectory)):
 
             t = np.linspace(waypoints[i].time, waypoints[i + 1].time, self.config.waypoints_per_segment)
-            x_path = (trajectory[i][0] * t ** 4 + trajectory[i][1] * t ** 3 + trajectory[i][2] * t ** 2 + trajectory[i][3] * t + trajectory[i][4])
-            y_path = (trajectory[i][5] * t ** 4 + trajectory[i][6] * t ** 3 + trajectory[i][7] * t ** 2 + trajectory[i][8] * t + trajectory[i][9])
-            z_path = (trajectory[i][10] * t ** 4 + trajectory[i][11] * t ** 3 + trajectory[i][12] * t ** 2 + trajectory[i][13] * t + trajectory[i][14])
+            x_path = (trajectory[i][0] * t ** 4 + trajectory[i][1] * t ** 3 + trajectory[i][2] * t ** 2 + trajectory[i][
+                3] * t + trajectory[i][4])
+            y_path = (trajectory[i][5] * t ** 4 + trajectory[i][6] * t ** 3 + trajectory[i][7] * t ** 2 + trajectory[i][
+                8] * t + trajectory[i][9])
+            z_path = (trajectory[i][10] * t ** 4 + trajectory[i][11] * t ** 3 + trajectory[i][12] * t ** 2 +
+                      trajectory[i][13] * t + trajectory[i][14])
             yaw_path = (trajectory[i][15] * t ** 2 + trajectory[i][16] * t + trajectory[i][17])
 
             # ... calculate position of each waypoint
             for j in range(len(t)):
                 out.append(airsim.Vector3r(x_path[j], y_path[j], z_path[j]))
-                yaw = self.vectorToYaw(np.array([x_path[j], y_path[j], z_path[j]]) - np.array([waypoints[i+1].x, waypoints[i+1].y, waypoints[i+1].z]))
-                outComplete.append([x_path[j], y_path[j], z_path[j], yaw, t[j]]) # yaw_path[j]
+                yaw = self.vectorToYaw(np.array([x_path[j], y_path[j], z_path[j]]) - np.array(
+                    [waypoints[i + 1].x, waypoints[i + 1].y, waypoints[i + 1].z]))
+                outComplete.append([x_path[j], y_path[j], z_path[j], yaw, t[j]])  # yaw_path[j]
 
         return out, outComplete
 
     def vectorToYaw(self, vec):
         return degrees(atan2(vec[1], vec[0])) - 180
 
-
-    # print pose list 
+    # print pose list
     # pose: [x, y, z, qw, qx, qy, qz]
     def printPose(self, pose):
         print(f"x: {pose[0]} y: {pose[1]} z: {pose[2]} qw: {pose[3]} qx: {pose[4]} qy: {pose[5]} qz: {pose[6]} ")
@@ -394,7 +398,3 @@ class AirSimController:
         self.client.reset()
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
-
-
-
-

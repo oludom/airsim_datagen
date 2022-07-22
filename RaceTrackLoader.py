@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sys
+
 sys.path.append('../')
 
 import json
@@ -10,7 +11,6 @@ import cv2
 import torchvision.transforms as transforms
 
 import glob
-import os
 from pathlib import Path
 
 from itertools import chain
@@ -21,10 +21,10 @@ import torch.nn.functional as fn
 
 import util
 
-import numpy as np
-
 '''
-
+loads data for single race track (usually called trackXX with XX in [0:100]
+returns generator object
+item contains timestamp, waypoints, pose, imu:list, path of left image : string, velocity
 '''
 
 
@@ -60,7 +60,7 @@ class RacetrackLoader:
 
         self.raceTrackName = raceTrackName
 
-        self.skipLastXImages = -1 if skipLastXImages == 0 else skipLastXImages*-1
+        self.skipLastXImages = -1 if skipLastXImages == 0 else skipLastXImages * -1
 
     def __iter__(self):
 
@@ -89,6 +89,7 @@ class RacetrackLoader:
     def __del__(self):
         self.configFile.close()
 
+    # export drone and ground truth trajectory in TUM file/data format
     def exportTrajectoriesAsTum(self):
         # output file names
         fp1, fp2 = \
@@ -122,9 +123,17 @@ class RacetrackLoader:
                 trf.write("\n")
 
 
+'''
+loads all race tracks in a dataset folder
+returns torch.utils.data.Dataset
+item returns left image and velocity vector in local body frame FLU as label
+'''
+
+
 class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
-                 yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,  # imageScale in percent of original image size
+                 yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,
+                 # imageScale in percent of original image size
                  imageTransforms=None, skipLastXImages=0
                  ):
 
@@ -138,13 +147,14 @@ class RaceTracksDataset(Dataset):
         if maxTracksLoaded == -1:
             maxTracksLoaded = math.inf
         for path in glob.glob(f"{dataset_path}/*/"):
-            if loadedTracks >= maxTracksLoaded+skipTracks:
+            if loadedTracks >= maxTracksLoaded + skipTracks:
                 break
             loadedTracks += 1
             if loadedTracks <= skipTracks:
                 continue
             trackname = Path(path).parts[-1]
-            self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength, skipLastXImages=skipLastXImages))
+            self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength,
+                                                  skipLastXImages=skipLastXImages))
 
         self.data = list(chain(*self.rtLoaders))
 
@@ -155,15 +165,8 @@ class RaceTracksDataset(Dataset):
         self.first = True
 
     def __getitem__(self, index):
-        ts, waypoints, pose, imu, lipath, velocity = self.data[index]
-        # if index > 0:
-        #     _, _, prevPose, _, _ = self.data[index - 1]
-        # else:
-        #     prevPose = pose
-        # label = self.waypointToVelocityVector(waypoints, pose, prevPose)
+        _, _, _, _, lipath, velocity = self.data[index]
         label = torch.tensor(velocity, dtype=torch.float32)
-        # label = fn.normalize(label, dim=0)
-        # TODO: normalize?
         sample = self.loadImage(lipath)
         # move to device
         label = label.to(self.device)
@@ -177,10 +180,8 @@ class RaceTracksDataset(Dataset):
         image = cv2.imread(path)
 
         if self.grayScale:
+            # not tested after recent changes
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            pass
 
         # scale down
         if not self.imageScale == 100:
@@ -191,22 +192,12 @@ class RaceTracksDataset(Dataset):
             # resize image
             image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
-        # opencv loads images with last dimension as color channel
-        # so they have to be reordered for pytorch
-
+        # convert to torch tensor
         image = transforms.Compose([
             transforms.ToTensor(),
         ])(image)
-        # image = torch.from_numpy(image)
-        # image = image.float().div(255)
 
-        # if not self.grayScale:
-        #     # image = torch.tensor(image)
-        #     image = torch.permute(image, (2, 0, 1)) # channels, height, width
-            # image = image.numpy()
-
-        # convert to torch.Tensor
-
+        # apply transforms
         if self.imageTransform:
             image = self.imageTransform(image)
 
