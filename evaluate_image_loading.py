@@ -32,7 +32,7 @@ from copy import deepcopy
 
 import imitation.dn as dn
 
-from DatasetLoader import RaceTracksDataset
+from RaceTrackLoader import RaceTracksDataset
 
 
 
