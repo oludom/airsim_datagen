@@ -74,8 +74,9 @@ class RacetrackLoader:
                         frame['waypoint_index']: frame['waypoint_index'] + self.localTrajectoryLength]
             pose = frame['pose']
             imu = frame['imu']
+            vel = frame['body_velocity_yaw_pid']
 
-            yield ts, waypoints, pose, imu, lipath
+            yield ts, waypoints, pose, imu, lipath, vel
 
     def loadConfig(self, configFile):
         class ConfigLoader:
@@ -154,12 +155,14 @@ class RaceTracksDataset(Dataset):
         self.first = True
 
     def __getitem__(self, index):
-        ts, waypoints, pose, imu, lipath = self.data[index]
-        if index > 0:
-            _, _, prevPose, _, _ = self.data[index - 1]
-        else:
-            prevPose = pose
-        label = self.waypointToVelocityVector(waypoints, pose, prevPose)
+        ts, waypoints, pose, imu, lipath, velocity = self.data[index]
+        # if index > 0:
+        #     _, _, prevPose, _, _ = self.data[index - 1]
+        # else:
+        #     prevPose = pose
+        # label = self.waypointToVelocityVector(waypoints, pose, prevPose)
+        label = torch.tensor(velocity, dtype=torch.float32)
+        # label = fn.normalize(label, dim=0)
         # TODO: normalize?
         sample = self.loadImage(lipath)
         # move to device
@@ -178,7 +181,7 @@ class RaceTracksDataset(Dataset):
         else:
             # image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             pass
-        
+
         # scale down
         if not self.imageScale == 100:
             scale_percent = self.imageScale  # percent of original size
@@ -213,6 +216,7 @@ class RaceTracksDataset(Dataset):
     calculate velocity vector
     x,y,z velocity = normalized mean of next n waypoints, moved to local frame
     where n = localTrajectoryLength
+    forward left up (x, y, z)
     '''
 
     def waypointToVelocityVector(self, waypoints, pose, prevPose):
