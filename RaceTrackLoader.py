@@ -19,7 +19,6 @@ import torch
 from torch.utils.data import Dataset
 import torch.nn.functional as fn
 
-import util
 
 '''
 loads data for single race track (usually called trackXX with XX in [0:100]
