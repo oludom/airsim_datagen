@@ -44,6 +44,10 @@ import MAVeric.trajectory_planner as maveric
 # from VelocityPID import VelocityPID
 from UnityPID import VelocityPID
 
+from util import *
+
+torch.set_grad_enabled(False)
+
 
 class NetworkTestClient(SimClient):
 
@@ -57,10 +61,10 @@ class NetworkTestClient(SimClient):
         self.gateConfigurations = []
         self.currentGateConfiguration = 0
 
-        self.model = resnet8.ResNet8(input_dim=3, output_dim=4)
-        if device == 'cuda':
-            self.model = nn.DataParallel(self.model)
-            cudnn.benchmark = True
+        self.model = resnet8.ResNet8(input_dim=3, output_dim=4, f=.5)
+        # if device == 'cuda':
+        #     self.model = nn.DataParallel(self.model)
+        #     cudnn.benchmark = True
 
         self.model.load_state_dict(torch.load(modelPath))
 
@@ -102,8 +106,6 @@ class NetworkTestClient(SimClient):
                 prepause = time.time()
                 self.client.simPause(True)
 
-                # save images of current frame
-                # self.captureAndSaveImages(cwpindex, cimageindex)
 
                 # get images from AirSim API
 
@@ -114,7 +116,9 @@ class NetworkTestClient(SimClient):
 
                 # predict vector with network
                 pred = self.model(images)
-                pred = list(pred[0] * 5)
+                pred = pred.to(torch.device('cpu'))
+                pred = pred.detach().numpy()
+                pred = pred[0]  # remove batch
 
                 cimageindex += 1
 
@@ -132,11 +136,34 @@ class NetworkTestClient(SimClient):
                 # send control command to airsim
                 cstate = self.getState()
 
-                yaw = cstate[3] + pred[3]
-                yaw = float(yaw)
+                # rotate velocity command such that it is in world coordinates
+                Wvel = vector_body_to_world(pred[:3]*10, [0, 0, 0], cstate[3])
 
-                self.client.moveByVelocityAsync(float(pred[0]), float(pred[1]), float(pred[2]),
-                                                duration=float(timePerImage), yaw_mode=airsim.YawMode(False, yaw))
+                # add pid output for yaw to current yaw position
+                Wyaw = degrees(cstate[3]) - degrees(pred[3])
+
+                # visualizes prediction 
+                self.client.simPlotPoints([self.getPositionAirsimUAV().position], color_rgba=[1.0, 0.0, 1.0, 1.0],
+                                      size=10.0, duration=self.timestep, is_persistent=False)
+                Wposvel = cstate[:3] + Wvel
+                self.client.simPlotPoints([airsim.Vector3r(Wposvel[0], Wposvel[1], Wposvel[2])], color_rgba=[.8, 0.5, 1.0, 1.0],
+                                      size=10.0, duration=self.timestep, is_persistent=False)
+
+                '''
+                Args:
+                    vx (float): desired velocity in world (NED) X axis
+                    vy (float): desired velocity in world (NED) Y axis
+                    vz (float): desired velocity in world (NED) Z axis
+                    duration (float): Desired amount of time (seconds), to send this command for
+                    drivetrain (DrivetrainType, optional):
+                    yaw_mode (YawMode, optional):
+                    vehicle_name (str, optional): Name of the multirotor to send this command to
+                '''
+                self.client.moveByVelocityAsync(float(Wvel[0]), float(Wvel[1]), float(Wvel[2]),
+                                                duration=float(timePerImage), yaw_mode=airsim.YawMode(False, Wyaw))
+
+
+
 
     def loadWithAirsim(self):
         # get images from AirSim API
@@ -166,7 +193,7 @@ if __name__ == "__main__":
     import contextlib
 
     with contextlib.closing(NetworkTestClient(
-            "/home/kristoffer/dev/imitation/datagen/eval/runs/ResNet8_bs=32_lt=MSE_lr=0.01_c=run0/best.pth",
+            "/home/kristoffer/dev/imitation/datagen/eval/runs/ResNet8_bs=32_lt=MSE_lr=0.001_c=run6/best.pth",
             device="cuda")) as nc:
         nc.loadGatePositions(nc.config.gates['poses'])
         nc.run()
