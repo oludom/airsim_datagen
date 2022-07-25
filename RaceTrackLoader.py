@@ -134,7 +134,7 @@ class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,
                  # imageScale in percent of original image size
-                 imageTransforms=None, skipLastXImages=0
+                 imageTransforms=None, skipLastXImages=0, max_velocity=2
                  ):
 
         # create image transform to transform image to tensor
@@ -157,6 +157,9 @@ class RaceTracksDataset(Dataset):
                                                   skipLastXImages=skipLastXImages))
 
         self.data = list(chain(*self.rtLoaders))
+
+        # filter out data points with too high velocity
+        self.data = list(filter(lambda x: util.magnitude(x[5][:3]) > max_velocity, self.data))
 
         self.device = device
         self.yawMaxCommand = yawMaxCommand
