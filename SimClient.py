@@ -71,6 +71,7 @@ class SimClient(AirSimInterface):
         # close super class (AirSimController)
         super().close()
 
+
     '''
     run mission
     - initialize velocity pid controller
@@ -79,13 +80,14 @@ class SimClient(AirSimInterface):
     - follow trajectory with sampled waypoints
     showMarkers: boolean, if true, trajectory will be visualized with red markers in simulation
     captureImages: boolean, if true, each iteration will capture a frame of each camera, simulation is paused for this
+    velocity_limit: float, maximum velocity of the vehicle
 
     variable name prefix:
     W: coordinates in world frame
     B: coordinates in body frame (drone/uav)
     '''
 
-    def gateMission(self, showMarkers=True, captureImages=True):
+    def gateMission(self, showMarkers=True, captureImages=True, velocity_limit=2):
 
         mission = True
 
@@ -234,6 +236,14 @@ class SimClient(AirSimInterface):
                 ctrl.update(tn - lastPID)
                 # get current pid output´
                 Bvel, Byaw = ctrl.getVelocityYaw()
+
+                print(f"magnitude: {magnitude(Bvel)}")
+                Bvel_percent = magnitude(Bvel) / velocity_limit
+                print(f"percent: {Bvel_percent}")
+                # if magnitude of pid output is greater than velocity limit, scale pid output to velocity limit
+                if Bvel_percent > 1:
+                    Bvel = Bvel / Bvel_percent
+
 
                 # rotate velocity command such that it is in world coordinates
                 Wvel = vector_body_to_world(Bvel, [0, 0, 0], Wcstate[3])

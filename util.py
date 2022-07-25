@@ -4,6 +4,11 @@ import numpy as np
 import math as m
 
 
+# calculate magnitude of vector
+def magnitude(vec):
+    return np.sqrt(vec.dot(vec))
+
+
 # theta: angle in radian
 def Rx(theta: float):
     return np.array([[1, 0, 0],
