@@ -133,8 +133,14 @@ class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,
                  # imageScale in percent of original image size
-                 imageTransforms=None, skipLastXImages=0
+                 imageTransforms=None, skipLastXImages=0, train=True, tracknames=[0]
                  ):
+        """
+        args:
+            + maxTracksLoaded: Number of tracks folder to be loaded into the dataset
+            + skipLastXImages: Number of images to skip (from the end of each folder)
+            + skipTracks: Number of tracks (folder) to skip from the data directory
+        """
 
         # create image transform to transform image to tensor
         self.imageTransform = imageTransforms
@@ -145,16 +151,28 @@ class RaceTracksDataset(Dataset):
         loadedTracks = 0
         if maxTracksLoaded == -1:
             maxTracksLoaded = math.inf
+
         for path in glob.glob(f"{dataset_path}/*/"):
+            
             if loadedTracks >= maxTracksLoaded + skipTracks:
                 break
-            loadedTracks += 1
+
+            trackname = Path(path).parts[-1]
+            loadedTracks +=1
             if loadedTracks <= skipTracks:
                 continue
-            trackname = Path(path).parts[-1]
+            
+            # if int(trackname[-1]) in tracknames:
+            # a RacetrackLoader is used for only a track folder
             self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength,
-                                                  skipLastXImages=skipLastXImages))
+                                                skipLastXImages=skipLastXImages))
+            training_mode = "training" if train else "validation"
+            print(f"Loaded {trackname} for {training_mode}")
+            
 
+
+
+        # Chain all tracks samples into a single list of multiple tuples: (ts, waypoints, pose, imu, lipath, vel)
         self.data = list(chain(*self.rtLoaders))
 
         self.device = device
@@ -164,12 +182,15 @@ class RaceTracksDataset(Dataset):
         self.first = True
 
     def __getitem__(self, index):
+        
+        # (ts, waypoints, pose, imu, lipath, vel)
         _, _, _, _, lipath, velocity = self.data[index]
         label = torch.tensor(velocity, dtype=torch.float32)
         sample = self.loadImage(lipath)
+        # print(sample.max())
         # move to device
-        label = label.to(self.device)
-        sample = sample.to(self.device)
+        # label = label.to(self.device)
+        # sample = sample.to(self.device)
         return sample, label
 
     def __len__(self):
@@ -257,3 +278,87 @@ class RaceTracksDataset(Dataset):
             return poses, velocities
         else:
             return poses[::skip], velocities[::skip]
+
+class RecurrentRaceTracksLoader(RacetrackLoader):
+    def __init__(self, dataset_basepath: str, dataset_basename: str, raceTrackName: str, localTrajectoryLength: int = 3, skipLastXImages=0, sequence_length=5):
+        super().__init__(dataset_basepath, dataset_basename, raceTrackName, localTrajectoryLength, skipLastXImages)
+        self.sequence_length = sequence_length
+
+    def __iter__(self):
+        for i, frame_i in enumerate(self.data[:self.skipLastXImages:self.sequence_length]):
+            
+            lipath = []
+            ts = []
+            waypoints = []
+            pose = []
+            imu = []
+            vel = []
+            
+            for j in range(self.sequence_length):
+                frame = self.data[i + j]
+                
+                # load left image
+                lipath.append(self.DATASET_PATH_LEFT + "/" + frame['image_name'] + ".png")
+                # load other values
+                ts.append(frame['time_stamp'])
+                waypoints.append(self.config.waypoints[
+                            frame['waypoint_index']: frame['waypoint_index'] + self.localTrajectoryLength])    
+                pose.append(frame['pose'])
+                imu.append(frame['imu'])
+                vel.append(frame['body_velocity_yaw_pid'])
+
+            yield ts, waypoints, pose, imu, lipath, vel
+
+class RecurrentRaceTrackDataset(RaceTracksDataset):
+    def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu', yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True, imageTransforms=None, skipLastXImages=0, tracknames = [0], train=True):
+        # super().__init__(dataset_basepath, dataset_basename, localTrajectoryLength, device, yawMaxCommand, skipTracks, maxTracksLoaded, imageScale, grayScale, imageTransforms, skipLastXImages)
+ # create image transform to transform image to tensor
+        self.imageTransform = imageTransforms
+
+        dataset_path = dataset_basepath + "/" + dataset_basename
+        # load all tracks in directory
+        self.rtLoaders = []
+        loadedTracks = 0
+        if maxTracksLoaded == -1:
+            maxTracksLoaded = math.inf
+        for path in glob.glob(f"{dataset_path}/*/"):
+            if loadedTracks >= maxTracksLoaded + skipTracks:
+                break
+
+            loadedTracks +=1
+            
+            if loadedTracks <= skipTracks:
+                            continue
+
+            
+            trackname = Path(path).parts[-1]
+            # if int(trackname[-1]) in tracknames:
+                # a RacetrackLoader is used for only a track folder
+            self.rtLoaders.append(RecurrentRaceTracksLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength,
+                                                skipLastXImages=skipLastXImages))
+            training_mode = "training" if train else "validation"
+            print(f"Loaded {trackname} for {training_mode}")
+            
+            
+
+        # Chain all tracks samples into a single list of multiple tuples: (ts, waypoints, pose, imu, lipath, vel)
+        self.data = list(chain(*self.rtLoaders))
+
+        self.device = device
+        self.yawMaxCommand = yawMaxCommand
+        self.imageScale = imageScale
+        self.grayScale = grayScale
+        self.first = True
+
+
+    def __getitem__(self, index):
+        label = torch.tensor(self.data[index][-1], dtype=torch.float32)
+        lipaths = self.data[index][-2]
+        sample = []
+
+        for i, lipath in enumerate(lipaths):
+            sample.append(self.loadImage(lipath).unsqueeze(0))
+        
+        sample = torch.cat(sample, axis=0)
+
+        return sample, label
