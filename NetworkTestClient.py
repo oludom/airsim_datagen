@@ -8,6 +8,7 @@ this runs the main loop and holds the settings for the simulation.
 
 '''
 
+from email import parser
 import sys
 from urllib import response
 
@@ -26,7 +27,7 @@ import torch
 import torchvision.transforms as transforms
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
-
+import argparse
 import os
 import time
 from math import *
@@ -35,7 +36,7 @@ import time
 import cv2
 from copy import deepcopy
 
-import imitation.ResNet8 as resnet8
+import orb_imitation.ResNet8 as resnet8
 
 # import MAVeric polynomial trajectory planner
 import MAVeric.trajectory_planner as maveric
@@ -48,10 +49,17 @@ from util import *
 
 torch.set_grad_enabled(False)
 
+parser = argparse.ArgumentParser('Add argument for AirsimClient')
+parser.add_argument('--weight','-w',type=str,default='')
+parser.add_argument('--architecture','-arc', type=str, choices=["resnet8", "racenet8"])
+arg = parser.parse_args()
+arc = arg.architecture
+model_weight_path = arg.weight
+
 
 class NetworkTestClient(SimClient):
 
-    def __init__(self, modelPath, raceTrackName="track0", device='cpu'):
+    def __init__(self, modelPath, raceTrackName="track0", device='cpu', arc=''):
 
         # init super class (AirSimController)
         super().__init__(raceTrackName=raceTrackName, createDataset=False)
@@ -193,7 +201,7 @@ if __name__ == "__main__":
     import contextlib
 
     with contextlib.closing(NetworkTestClient(
-            "/home/kristoffer/dev/imitation/datagen/eval/runs/ResNet8_bs=32_lt=MSE_lr=0.001_c=run6/best.pth",
-            device="cuda")) as nc:
+            modelPath=model_weight_path,
+            device="cuda", arc=arc)) as nc:
         nc.loadGatePositions(nc.config.gates['poses'])
         nc.run()
