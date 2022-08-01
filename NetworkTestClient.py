@@ -12,6 +12,8 @@ from email import parser
 import sys
 from urllib import response
 
+from models.racenet8 import RaceNet8
+from models.ResNet8 import ResNet8
 sys.path.append('../')
 sys.path.append('../../')
 sys.path.append('../../../')
@@ -36,7 +38,7 @@ import time
 import cv2
 from copy import deepcopy
 
-import orb_imitation.ResNet8 as resnet8
+# import orb_imitation.ResNet8 as resnet8
 
 # import MAVeric polynomial trajectory planner
 import MAVeric.trajectory_planner as maveric
@@ -69,7 +71,11 @@ class NetworkTestClient(SimClient):
         self.gateConfigurations = []
         self.currentGateConfiguration = 0
 
-        self.model = resnet8.ResNet8(input_dim=3, output_dim=4, f=.5)
+        if arc == 'resnet8':
+            self.model = ResNet8(input_dim=3, output_dim=4, f=.5)
+        if arc == 'racenet8':
+            self.model = RaceNet8(input_dim=3, output_dim=4, f=.5)
+        
         # if device == 'cuda':
         #     self.model = nn.DataParallel(self.model)
         #     cudnn.benchmark = True
