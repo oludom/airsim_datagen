@@ -85,7 +85,7 @@ class SimClient(AirSimInterface):
     B: coordinates in body frame (drone/uav)
     '''
 
-    def gateMission(self, showMarkers=True, captureImages=True):
+    def gateMission(self, showMarkers=True, captureImages=True, object_base_name = 'BP_AirLab2m1Gate_', num_object = 3):
 
         mission = True
 
@@ -118,7 +118,10 @@ class SimClient(AirSimInterface):
         ctrl.setGoal([0, 0, 0, 0])
 
         # get trajectory
-        Wtimed_waypoints, Wtrajectory = self.generateTrajectoryFromCurrentGatePositions(timestep=1)
+        # Wtimed_waypoints, Wtrajectory = self.generateTrajectoryFromCurrentGatePositions(timestep=1)
+        # Wtimed_waypoints, Wtrajectory = self.generateTrajectoryFromObjectPositions(traj=True, object_base_name = 'WPAlgae_', num_object = 3)
+        Wtimed_waypoints, Wtrajectory = self.generateTrajectoryFromObjectPositions(traj=True, object_base_name = object_base_name, num_object = num_object)
+
 
         Wpath, WpathComplete = self.convertTrajectoryToWaypoints(Wtimed_waypoints, Wtrajectory,
                                                                  evaltime=self.config.roundtime)
@@ -433,7 +436,7 @@ if __name__ == "__main__":
             sc.loadNextGatePosition()
 
             # fly mission
-            sc.gateMission(False, True)
+            sc.gateMission(showMarkers=True, captureImages=False, object_base_name = 'BP_AirLab2m1Gate_', num_object = 4)
 
             sc.loadGatePositions(sc.config.gates['poses'])
             sc.reset()
