@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import sys
+import numpy as np
+from tqdm import tqdm
 
 sys.path.append('../')
 
@@ -180,17 +182,28 @@ class RaceTracksDataset(Dataset):
         self.imageScale = imageScale
         self.grayScale = grayScale
         self.first = True
+        self.max_v = None
+        self.find_max_velocities()
+
+    def find_max_velocities(self):
+        print("finding maximum absolute values of x,y,z,yaw velocities...")
+        velocities = np.zeros([len(self.data), 4]) 
+        for i, sample in enumerate(tqdm(self.data)):
+            _, _, _, _, lipath, velocity = sample
+            velocities[i, :] = velocity
+        self.max_v = torch.tensor(np.max(abs(velocities), axis=0), dtype=torch.float32)
+        print(f"Maximum velociies: {self.max_v}")
+        print(self.max_v.shape)
+        print("Done")
+    
 
     def __getitem__(self, index):
         
         # (ts, waypoints, pose, imu, lipath, vel)
         _, _, _, _, lipath, velocity = self.data[index]
         label = torch.tensor(velocity, dtype=torch.float32)
+        # label = label / self.max_v
         sample = self.loadImage(lipath)
-        # print(sample.max())
-        # move to device
-        # label = label.to(self.device)
-        # sample = sample.to(self.device)
         return sample, label
 
     def __len__(self):
