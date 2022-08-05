@@ -11,12 +11,15 @@ this runs the main loop and holds the settings for the simulation.
 from email import parser
 import sys
 from urllib import response
+import os
 
-from models.racenet8 import RaceNet8
-from models.ResNet8 import ResNet8
-sys.path.append('../')
-sys.path.append('../../')
-sys.path.append('../../../')
+
+
+# # os.chdir('./datagen')
+
+# sys.path.append('../')
+# sys.path.append('../../')
+# sys.path.append('../../../')
 
 from AirSimInterface import AirSimInterface
 from SimClient import SimClient
@@ -38,7 +41,13 @@ import time
 import cv2
 from copy import deepcopy
 
-# import orb_imitation.ResNet8 as resnet8
+# os.chdir('../')
+# print(os.getcwd())
+# import imitation.ResNet8 as resnet8
+# import models.racenet8 as racenet8
+print('__file__={0:<35} | __name__={1:<25} | __package__={2:<25}'.format(__file__,__name__,str(__package__)))
+from ..models.racenet8 import RaceNet8
+from  ..models.ResNet8 import ResNet8
 
 # import MAVeric polynomial trajectory planner
 import MAVeric.trajectory_planner as maveric
