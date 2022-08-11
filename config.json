@@ -1,5 +1,5 @@
 {
-    "debug": true,
+    "debug": false,
     "framerate": 30,
     "imuRate": 400,
     "pidRate": 30,
