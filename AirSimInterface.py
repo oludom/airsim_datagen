@@ -398,3 +398,54 @@ class AirSimInterface:
         self.client.reset()
         self.client.enableApiControl(True)
         self.client.armDisarm(True)
+
+    # get an numpy array of the pose of the object with given name
+    def getObjectPose(self, object_name):
+        pose = self.client.simGetObjectPose(object_name)
+        retVal = np.array(
+            [pose.position.x_val, pose.position.y_val, pose.position.z_val, pose.orientation.w_val,
+             pose.orientation.x_val, pose.orientation.y_val, pose.orientation.z_val])
+        return retVal
+        
+
+    def getListObjectPose(self, object_base_name, num_object):
+
+        waypoints = []  # a list of 4D poses of objects
+
+        for i in range(num_object):
+            this_object_pose = self.getObjectPose(object_base_name + str(i+1))
+            quat_object = airsim.Quaternionr(x_val=this_object_pose[4], y_val=this_object_pose[5], z_val=this_object_pose[6], w_val=this_object_pose[3])
+            _, _, yaw = airsim.to_eularian_angles(quat_object) # convert to xyz and yaw
+            object_pose4d = [this_object_pose[0], this_object_pose[1], this_object_pose[2], degrees(-yaw)]
+            # add waypoint
+            waypoints.append(object_pose4d)
+
+        return waypoints
+    
+    # gets current position of gates and generates a trajectory through those points
+    # if traj is true:
+    #   returns maveric.Waypoint objects, trajectory as list of parameters for polynomials (see convertTrajectoryToWaypoints())
+    # else: 
+    #   returns waypoints as list of [x, y, z, yaw], yaw in degrees
+    def generateTrajectoryFromObjectPositions(self, traj=True, object_base_name = 'WPAlgae_', num_object = 3):
+
+        waypoints = self.getListObjectPose(object_base_name, num_object)
+
+                # uav current position is first waypoint
+        uavpos = self.getPositionUAV()
+        orientation = self.getPositionAirsimUAV().orientation
+        # convert to xyz and yaw
+        _, _, yaw = airsim.to_eularian_angles(orientation)
+        uavwp = [uavpos[0], uavpos[1], uavpos[2], degrees(-yaw)]
+        # add waypoint
+
+        #append uavwp to the first element of the list
+        waypoints.insert(0, uavwp)
+
+
+        if traj:
+            # call maveric to get trajectory
+            return maveric.planner(waypoints)
+        else:
+            # return list of waypoints
+            return waypoints

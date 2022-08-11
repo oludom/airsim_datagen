@@ -6,8 +6,8 @@
     "roundtime": 100,
     "waypoints_per_segment": 100,
     "gate_basename": "BP_AirLab2m1Gate_",
-    "dataset_basename": "X4Gates_Circle_left",
-    "dataset_basepath": "/media/kristoffer/eSSD/datasets",
+    "dataset_basename": "test",
+    "dataset_basepath": "/home/huy/temporal_planner_ws/src/airsim_datagen/",
     "gates": {
         "poses": [
             [1.0556249618530273, 3.7359390258789062, -0.75, 0.0],
