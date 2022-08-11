@@ -203,7 +203,7 @@ class AirSimInterface:
     # capture and save three images, left and right rgb, depth
     # wpidx: index of current waypoint, that is targeted by controller
     # idx: image index, used for naming the images, should count up to prevent overwriting existing images
-    def captureAndSaveImages(self, wpidx, idx=0, body_velocity_yaw=[0., 0., 0., 0.]):
+    def captureAndSaveImages(self, wpidx, idx=0, body_velocity_yaw=[0., 0., 0., 0.], world_velocity_yaw=[0., 0., 0., 0.]):
 
         # current frame name
         cfname = "image" + str(idx)
@@ -255,6 +255,8 @@ class AirSimInterface:
         # make sure the values are json serializable (e.g. numpy int64 is not)
         body_velocity_yaw = [float(el) for el in body_velocity_yaw]
         body_velocity_yaw[3] = radians(body_velocity_yaw[3])
+        world_velocity_yaw = [float(el) for el in world_velocity_yaw]
+        world_velocity_yaw[3] = radians(world_velocity_yaw[3])
 
         # write entry to output file
         entry = {
@@ -263,6 +265,7 @@ class AirSimInterface:
             "waypoint_index": wpidx,
             "pose": pos,
             "body_velocity_yaw_pid": body_velocity_yaw,
+            "world_velocity_yaw_pid": world_velocity_yaw,
             "imu": imu
         }
         if self.createDataset:
@@ -310,7 +313,7 @@ class AirSimInterface:
         waypoints.append(uavwp)
 
         # get current gate positions
-        for i in range(1, 5):
+        for i in range(1, len(self.config.gates['poses']) + 1):
             # get gate position
             gp = self.getPositionGate(i)
             # self.printPose(gp)
@@ -328,7 +331,7 @@ class AirSimInterface:
             # waypoints.append(wp1)
 
         # add uavwp again - starting point as endpoint
-        waypoints.append(uavwp)
+        # waypoints.append(uavwp)
 
         if traj:
             # call maveric to get trajectory

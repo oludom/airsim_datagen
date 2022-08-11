@@ -75,8 +75,9 @@ class RacetrackLoader:
             pose = frame['pose']
             imu = frame['imu']
             vel = frame['body_velocity_yaw_pid']
+            Wvel = frame['world_velocity_yaw_pid']
 
-            yield ts, waypoints, pose, imu, lipath, vel
+            yield ts, waypoints, pose, imu, lipath, vel, Wvel
 
     def loadConfig(self, configFile):
         class ConfigLoader:
@@ -168,7 +169,7 @@ class RaceTracksDataset(Dataset):
         self.first = True
 
     def __getitem__(self, index):
-        _, _, _, _, lipath, velocity = self.data[index]
+        _, _, _, _, lipath, velocity, Wvelocity = self.data[index]
         label = torch.tensor(velocity, dtype=torch.float32)
         sample = self.loadImage(lipath)
         # move to device

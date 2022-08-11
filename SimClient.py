@@ -141,6 +141,8 @@ class SimClient(AirSimInterface):
         lastIMU = time.time()
         lastPID = time.time()
 
+        WLastAirSimVel = [0., 0., 0., 0.]
+
         timePerWP = float(self.config.roundtime) / len(WpathComplete)
         timePerImage = 1. / float(self.config.framerate)
         timePerIMU = 1. / float(self.config.imuRate)
@@ -206,9 +208,10 @@ class SimClient(AirSimInterface):
                 self.client.simPause(True)
 
                 Bvel, Byaw = ctrl.getVelocityYaw()
+                Bvel = Bvel / velocity_limit
 
                 # save images of current frame
-                self.captureAndSaveImages(cwpindex, cimageindex, [*Bvel, Byaw])
+                self.captureAndSaveImages(cwpindex, cimageindex, [*Bvel, Byaw], WLastAirSimVel)
                 cimageindex += 1
 
                 # unpause simulation
@@ -239,7 +242,7 @@ class SimClient(AirSimInterface):
 
                 print(f"magnitude: {magnitude(Bvel)}")
                 Bvel_percent = magnitude(Bvel) / velocity_limit
-                print(f"percent: {Bvel_percent}")
+                print(f"percent: {Bvel_percent*100}")
                 # if magnitude of pid output is greater than velocity limit, scale pid output to velocity limit
                 if Bvel_percent > 1:
                     Bvel = Bvel / Bvel_percent
@@ -250,6 +253,8 @@ class SimClient(AirSimInterface):
 
                 # add pid output for yaw to current yaw position
                 Wyaw = degrees(Wcstate[3]) + Byaw
+
+                WLastAirSimVel = [*Wvel, Wyaw]
 
                 '''
                 Args:
