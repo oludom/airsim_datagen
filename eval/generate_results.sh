@@ -8,7 +8,7 @@
 
 # dataset folder
 DATASETS=/media/micha/eSSD/datasets
-DFOLDER=/X4Gates_Circle_0
+DFOLDER=/X4Gates_Circles
 #DATASETS=/home/micha/dev/datasets/droneracing
 #DFOLDER=/X4Gates_Circle_1
 #DATASETS=/data/datasets

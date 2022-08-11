@@ -5,7 +5,6 @@
 check weather loading the images different ways results in the same torch.Tensor
 '''
 
-
 import sys
 from urllib import response
 
@@ -32,23 +31,16 @@ from copy import deepcopy
 
 import imitation.dn as dn
 
-from DatasetLoader import RaceTracksDataset
-
-
+from RaceTrackLoader import RaceTracksDataset
 
 
 class Test(SimClient):
 
     def __init__(self, raceTrackName="track0"):
-
         # init super class (AirSimController)
         super().__init__(raceTrackName=raceTrackName, createDataset=True)
 
-
-    
     def run(self):
-
-
         self.client.simPause(False)
 
         mission = True
@@ -66,32 +58,30 @@ class Test(SimClient):
         # load images
 
         # export airsim
-        self.captureAndSaveImages(0,0)
+        self.captureAndSaveImages(0, 0)
 
         # load with airsim
         image1 = self.loadWithAirsim()
 
         self.outputFile.flush()
         l = self.outputFile.tell()
-        self.outputFile.seek(l-2)
+        self.outputFile.seek(l - 2)
 
         print(']\n}', file=self.outputFile)
         self.outputFile.close()
 
         data = {
-            "waypoints": [[0,0,0,0,0]]
+            "waypoints": [[0, 0, 0, 0, 0]]
         }
         self.saveConfigToDataset(np.array([]), data)
 
         # load with torch dataloader
         image2 = self.loadWithTorch()
 
-
         i1 = image1.tolist()
         i2 = image2.tolist()
 
         print("end")
-
 
     def loadWithAirsim(self):
         # get images from AirSim API
@@ -107,7 +97,7 @@ class Test(SimClient):
         img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8)
         image = img1d.reshape(left.height, left.width, 3)
         # image = np.flipud(image) - np.zeros_like(image)  # pytorch conversion from numpy does not support negative stride
-        
+
         # preprocess image
         image = transforms.Compose([
             transforms.ToTensor(),
@@ -116,9 +106,7 @@ class Test(SimClient):
         image = dn.preprocess(image)
         return image
 
-
     def loadWithTorch(self):
-
         dataset = torch.utils.data.DataLoader(
             RaceTracksDataset(
                 self.config.dataset_basepath,
@@ -137,13 +125,6 @@ class Test(SimClient):
         image = batch[0][0]
         return image
 
-        
 
 if __name__ == "__main__":
-
     Test().run()
-
-    import contextlib
-
-    # with contextlib.closing(Test()) as nc:
-    #     nc.run()
