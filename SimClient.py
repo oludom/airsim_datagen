@@ -277,11 +277,11 @@ class SimClient(AirSimInterface):
                 self.c.refresh()
 
             # increase current waypoint index if time per waypoint passed and if there are more waypoints available in path
-            if nextWP and len(WpathComplete) > (cwpindex + 1):
+            if nextWP and len(WpathComplete) > (cwpindex + 1): 
                 cwpindex = cwpindex + 1
                 lastWP = tn
             # end mission when no more waypoints available
-            if len(WpathComplete) <= (cwpindex + 1):
+            if len(WpathComplete) - 80 <= (cwpindex + 1):   # ignore last 80 waypoints
                 mission = False
         if showMarkers:
             # clear persistent markers
