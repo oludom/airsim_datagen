@@ -11,6 +11,8 @@ this runs the main loop and holds the settings for the simulation.
 import sys
 from urllib import response
 
+import pfm
+
 sys.path.append('../')
 sys.path.append('../../')
 sys.path.append('../../../')
@@ -165,25 +167,42 @@ class NetworkTestClient(SimClient):
 
 
 
-    def loadWithAirsim(self):
+    def loadWithAirsim(self, depth = False):
         # get images from AirSim API
-        res = self.client.simGetImages(
-            [
-                airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
-                # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
-                # airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
-            ]
-        )
+        if depth:
+            res = self.client.simGetImages(
+                [
+                    airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
+                    # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
+                    airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
+                ]
+            )
+        else:
+            res = self.client.simGetImages(
+                [
+                    airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False)
+                ]
+            )
         left = res[0]
 
         img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8)
         image = img1d.reshape(left.height, left.width, 3)
         # image = np.flipud(image) - np.zeros_like(image)  # pytorch conversion from numpy does not support negative stride
 
+        if depth:
+            # format depth image
+            depth = pfm.get_pfm_array(res[1])[0] # [0] ignores scale
+
         # preprocess image
         image = transforms.Compose([
             transforms.ToTensor(),
         ])(image)
+
+        if depth:
+            depth = transforms.Compose([
+                transforms.ToTensor(),
+            ])(depth)
+            image = torch.cat((image, depth), dim=0)
 
         # image = dn.preprocess(image)
         return image
