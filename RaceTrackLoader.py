@@ -20,6 +20,8 @@ from torch.utils.data import Dataset
 import torch.nn.functional as fn
 
 import util
+import numpy as np
+import pfm
 
 '''
 loads data for single race track (usually called trackXX with XX in [0:100]
@@ -31,7 +33,7 @@ item contains timestamp, waypoints, pose, imu:list, path of left image : string,
 class RacetrackLoader:
 
     def __init__(self, dataset_basepath: str, dataset_basename: str, raceTrackName: str,
-                 localTrajectoryLength: int = 3, skipLastXImages=0):
+                 localTrajectoryLength: int = 3, skipLastXImages=0, skipFirstXImages=0):
         '''
         INIT VALUES
         '''
@@ -61,12 +63,14 @@ class RacetrackLoader:
         self.raceTrackName = raceTrackName
 
         self.skipLastXImages = -1 if skipLastXImages == 0 else skipLastXImages * -1
+        self.skipFirstXImages = 0 if skipFirstXImages < 1 else skipFirstXImages
 
     def __iter__(self):
 
-        for i, frame in enumerate(self.data[:self.skipLastXImages]):
+        for i, frame in enumerate(self.data[self.skipFirstXImages:self.skipLastXImages]):
             # load left image
             lipath = self.DATASET_PATH_LEFT + "/" + frame['image_name'] + ".png"
+            dpath = self.DATASET_PATH_DEPTH + "/" + frame['image_name'] + ".pfm"
 
             # load other values
             ts = frame['time_stamp']
@@ -77,7 +81,7 @@ class RacetrackLoader:
             vel = frame['body_velocity_yaw_pid']
             Wvel = frame['world_velocity_yaw_pid']
 
-            yield ts, waypoints, pose, imu, lipath, vel, Wvel
+            yield ts, waypoints, pose, imu, lipath, dpath, vel, Wvel
 
     def loadConfig(self, configFile):
         class ConfigLoader:
@@ -132,10 +136,11 @@ item returns left image and velocity vector in local body frame FLU as label
 
 
 class RaceTracksDataset(Dataset):
-    def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
+    def __init__(self, dataset_basepath: str, dataset_basename: str, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,
                  # imageScale in percent of original image size
-                 imageTransforms=None, skipLastXImages=0, max_velocity=2
+                 imageTransforms=None, loadDepth=False,
+                 *args, **kwargs
                  ):
 
         # create image transform to transform image to tensor
@@ -154,24 +159,24 @@ class RaceTracksDataset(Dataset):
             if loadedTracks <= skipTracks:
                 continue
             trackname = Path(path).parts[-1]
-            self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength,
-                                                  skipLastXImages=skipLastXImages))
+            self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, *args, **kwargs))
 
         self.data = list(chain(*self.rtLoaders))
 
         # filter out data points with too high velocity
-        self.data = list(filter(lambda x: util.magnitude(x[5][:3]) > max_velocity, self.data))
+        # self.data = list(filter(lambda x: util.magnitude(np.array(x[5][:3])) > max_velocity, self.data))
 
         self.device = device
         self.yawMaxCommand = yawMaxCommand
         self.imageScale = imageScale
         self.grayScale = grayScale
         self.first = True
+        self.loadDepth = loadDepth
 
     def __getitem__(self, index):
-        _, _, _, _, lipath, velocity, Wvelocity = self.data[index]
+        _, _, _, _, lipath, dpath, velocity, Wvelocity = self.data[index]
         label = torch.tensor(velocity, dtype=torch.float32)
-        sample = self.loadImage(lipath)
+        sample = self.loadImage(lipath, dpath)
         # move to device
         label = label.to(self.device)
         sample = sample.to(self.device)
@@ -180,8 +185,17 @@ class RaceTracksDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    def loadImage(self, path):
+    def loadImage(self, path, depthpath=None):
         image = cv2.imread(path)
+        depthimage = None
+        if not self.loadDepth:
+            depthpath = None
+        if depthpath is not None:
+            depthimage = pfm.read_pfm(depthpath)
+            depthimage = depthimage[0]
+            depthimage = transforms.Compose([
+                transforms.ToTensor(),
+            ])(depthimage)
 
         if self.grayScale:
             # not tested after recent changes
@@ -200,6 +214,9 @@ class RaceTracksDataset(Dataset):
         image = transforms.Compose([
             transforms.ToTensor(),
         ])(image)
+
+        if depthpath is not None:
+            image = torch.cat((image, depthimage), 0)
 
         # apply transforms
         if self.imageTransform:

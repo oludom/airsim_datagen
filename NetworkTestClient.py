@@ -11,6 +11,8 @@ this runs the main loop and holds the settings for the simulation.
 import sys
 from urllib import response
 
+import pfm
+
 sys.path.append('../')
 sys.path.append('../../')
 sys.path.append('../../../')
@@ -78,10 +80,10 @@ class NetworkTestClient(SimClient):
 
         self.loadGatePositions(self.config.gates['poses'])
 
-        self.model = resnet8.ResNet8(input_dim=3, output_dim=4, f=.25)
-        if device == 'cuda':
-            self.model = nn.DataParallel(self.model)
-            cudnn.benchmark = True
+        self.model = resnet8.ResNet8(input_dim=4, output_dim=4, f=.25)
+        # if device == 'cuda':
+        #     self.model = nn.DataParallel(self.model)
+        #     cudnn.benchmark = True
 
         self.model.load_state_dict(torch.load(modelPath))
 
@@ -126,7 +128,7 @@ class NetworkTestClient(SimClient):
 
                 # get images from AirSim API
 
-                image = self.loadWithAirsim()
+                image = self.loadWithAirsim(True)
 
                 images = torch.unsqueeze(image, dim=0)
                 images = images.to(self.dev)
@@ -182,19 +184,28 @@ class NetworkTestClient(SimClient):
 
 
 
-    def loadWithAirsim(self):
+
+    def loadWithAirsim(self, withDepth = False):
         # AirSim API rarely returns empty image data
         # 'and True' emulates a do while loop
         loopcount = 0
         while (True):
-            # get images from AirSim API
-            res = self.client.simGetImages(
-                [
-                    airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
-                    # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
-                    # airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
-                ]
-            )
+            if withDepth:
+
+                # get images from AirSim API
+                res = self.client.simGetImages(
+                    [
+                        airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
+                        # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
+                        airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
+                    ]
+                )
+            else:
+                res = self.client.simGetImages(
+                    [
+                        airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False)
+                    ]
+                )
             left = res[0]
 
             img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8)
@@ -207,10 +218,20 @@ class NetworkTestClient(SimClient):
                 loopcount += 1
                 print("airsim returned empty image." + str(loopcount))
 
+        if withDepth:
+            # format depth image
+            depth = pfm.get_pfm_array(res[1]) # [0] ignores scale
+
         # preprocess image
         image = transforms.Compose([
             transforms.ToTensor(),
         ])(image)
+
+        if withDepth:
+            depth = transforms.Compose([
+                transforms.ToTensor(),
+            ])(depth)
+            image = torch.cat((image, depth), dim=0)
 
         # image = dn.preprocess(image)
         return image
@@ -220,7 +241,7 @@ if __name__ == "__main__":
     import contextlib
 
     with contextlib.closing(NetworkTestClient(
-            "/home/kristoffer/dev/imitation/datagen/eval/runs/X1Gate/ResNet8_bs=32_lt=MSE_lr=0.001_c=run11/epoch7.pth",
-            device="cuda", raceTrackName="track10")) as nc:
+            "/home/kristoffer/dev/imitation/datagen/eval/runs/X1Gate/ResNet8_bs=32_lt=MSE_lr=0.001_c=run20/epoch10.pth",
+            device="cuda", raceTrackName="track0")) as nc:
         # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
         nc.run()

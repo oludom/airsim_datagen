@@ -6,7 +6,7 @@
     "roundtime": 12,
     "waypoints_per_segment": 100,
     "gate_basename": "BP_AirLab2m1Gate_",
-    "dataset_basename": "X1Gate100",
+    "dataset_basename": "X1GateDepth",
     "dataset_basepath": "/home/kristoffer/dev/dataset",
     "gates": {
         "poses": [
@@ -19,7 +19,7 @@
             "yaw": [-10, 10]
         },
         "grid_size": 15,
-        "number_configurations": 500
+        "number_configurations": 200
     }
 }
 
