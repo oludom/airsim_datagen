@@ -75,8 +75,9 @@ class RacetrackLoader:
             pose = frame['pose']
             imu = frame['imu']
             vel = frame['body_velocity_yaw_pid']
+            Wvel = frame['world_velocity_yaw_pid']
 
-            yield ts, waypoints, pose, imu, lipath, vel
+            yield ts, waypoints, pose, imu, lipath, vel, Wvel
 
     def loadConfig(self, configFile):
         class ConfigLoader:
@@ -134,7 +135,7 @@ class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,
                  # imageScale in percent of original image size
-                 imageTransforms=None, skipLastXImages=0
+                 imageTransforms=None, skipLastXImages=0, max_velocity=2
                  ):
 
         # create image transform to transform image to tensor
@@ -158,6 +159,9 @@ class RaceTracksDataset(Dataset):
 
         self.data = list(chain(*self.rtLoaders))
 
+        # filter out data points with too high velocity
+        self.data = list(filter(lambda x: util.magnitude(x[5][:3]) > max_velocity, self.data))
+
         self.device = device
         self.yawMaxCommand = yawMaxCommand
         self.imageScale = imageScale
@@ -165,7 +169,7 @@ class RaceTracksDataset(Dataset):
         self.first = True
 
     def __getitem__(self, index):
-        _, _, _, _, lipath, velocity = self.data[index]
+        _, _, _, _, lipath, velocity, Wvelocity = self.data[index]
         label = torch.tensor(velocity, dtype=torch.float32)
         sample = self.loadImage(lipath)
         # move to device

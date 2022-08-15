@@ -2,14 +2,14 @@
   "SeeDocsAt": "https://github.com/Microsoft/AirSim/blob/master/docs/settings.md",
   "SettingsVersion": 1.2,
   "SimMode": "Multirotor",
-  "ViewMode": "FlyWithMe",
+  "ViewMode": "NoDisplay",
   "EnableCollisionPassthrogh": true,
   "CameraDefaults": {
     "CaptureSettings": [
       {
           "ImageType": 0,
-          "Width": 300,
-          "Height": 200,
+          "Width": 256,
+          "Height": 144,
           "FOV_Degrees": 87,
           "AutoExposureSpeed": 100,
           "AutoExposureBias": 0,
@@ -38,8 +38,8 @@
           "CaptureSettings": [
             {
               "ImageType": 0,
-              "Width": 300,
-              "Height": 200,
+              "Width": 256,
+              "Height": 144,
               "FOV_Degrees": 90
             }
           ],
@@ -49,14 +49,10 @@
         "depth_cam": {
           "CaptureSettings": [
             {
-              "Width": 300,
-              "Height": 200,
-              "PublishToRos": 1,
-              "ImageType": 3,
-              "DepthOfFieldFstop": 2.8,
-              "DepthOfFieldFocalDistance": 200.0, 
-              "DepthOfFieldFocalRegion": 200.0,
-              "TargetGamma": 1.5
+              "Width": 256,
+              "Height": 144,
+              "PublishToRos": 0,
+              "ImageType": 3
             }
           ],
           "X": 0.20, "Y": 0, "Z": 0.0,

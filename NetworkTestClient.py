@@ -61,10 +61,27 @@ class NetworkTestClient(SimClient):
         self.gateConfigurations = []
         self.currentGateConfiguration = 0
 
-        self.model = resnet8.ResNet8(input_dim=3, output_dim=4, f=.5)
-        # if device == 'cuda':
-        #     self.model = nn.DataParallel(self.model)
-        #     cudnn.benchmark = True
+        # dataset_basepath = "/media/micha/eSSD/datasets"
+        dataset_basepath = self.config.dataset_basepath
+        # dataset_basepath = "/data/datasets"
+        # dataset_basename = "X4Gates_Circle_right_"
+        dataset_basename = self.DATASET_NAME
+        # dataset_basename = "X4Gates_Circle_2"
+
+
+        # relead config file from dataset
+        # configuration file
+        self.configFile = open(f'{dataset_basepath}/{dataset_basename}/{raceTrackName}/config.json', "r")
+
+        self.config = {}
+        self.loadConfig(self.configFile)
+
+        self.loadGatePositions(self.config.gates['poses'])
+
+        self.model = resnet8.ResNet8(input_dim=3, output_dim=4, f=.25)
+        if device == 'cuda':
+            self.model = nn.DataParallel(self.model)
+            cudnn.benchmark = True
 
         self.model.load_state_dict(torch.load(modelPath))
 
@@ -137,17 +154,17 @@ class NetworkTestClient(SimClient):
                 cstate = self.getState()
 
                 # rotate velocity command such that it is in world coordinates
-                Wvel = vector_body_to_world(pred[:3]*10, [0, 0, 0], cstate[3])
+                Wvel = vector_body_to_world(pred[:3]*2, [0, 0, 0], cstate[3])
 
                 # add pid output for yaw to current yaw position
-                Wyaw = degrees(cstate[3]) - degrees(pred[3])
+                Wyaw = degrees(cstate[3]) + degrees(pred[3])
 
                 # visualizes prediction 
-                self.client.simPlotPoints([self.getPositionAirsimUAV().position], color_rgba=[1.0, 0.0, 1.0, 1.0],
-                                      size=10.0, duration=self.timestep, is_persistent=False)
-                Wposvel = cstate[:3] + Wvel
-                self.client.simPlotPoints([airsim.Vector3r(Wposvel[0], Wposvel[1], Wposvel[2])], color_rgba=[.8, 0.5, 1.0, 1.0],
-                                      size=10.0, duration=self.timestep, is_persistent=False)
+                # self.client.simPlotPoints([self.getPositionAirsimUAV().position], color_rgba=[1.0, 0.0, 1.0, 1.0],
+                #                       size=10.0, duration=self.timestep, is_persistent=False)
+                # Wposvel = cstate[:3] + Wvel
+                # self.client.simPlotPoints([airsim.Vector3r(Wposvel[0], Wposvel[1], Wposvel[2])], color_rgba=[.8, 0.5, 1.0, 1.0],
+                #                       size=10.0, duration=self.timestep, is_persistent=False)
 
                 '''
                 Args:
@@ -166,19 +183,29 @@ class NetworkTestClient(SimClient):
 
 
     def loadWithAirsim(self):
-        # get images from AirSim API
-        res = self.client.simGetImages(
-            [
-                airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
-                # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
-                # airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
-            ]
-        )
-        left = res[0]
+        # AirSim API rarely returns empty image data
+        # 'and True' emulates a do while loop
+        loopcount = 0
+        while (True):
+            # get images from AirSim API
+            res = self.client.simGetImages(
+                [
+                    airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
+                    # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
+                    # airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
+                ]
+            )
+            left = res[0]
 
-        img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8)
-        image = img1d.reshape(left.height, left.width, 3)
-        # image = np.flipud(image) - np.zeros_like(image)  # pytorch conversion from numpy does not support negative stride
+            img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8)
+            image = img1d.reshape(left.height, left.width, 3)
+
+            # check if image contains data, repeat request if empty
+            if image.size:
+                break  # end of do while loop
+            else:
+                loopcount += 1
+                print("airsim returned empty image." + str(loopcount))
 
         # preprocess image
         image = transforms.Compose([
@@ -193,7 +220,7 @@ if __name__ == "__main__":
     import contextlib
 
     with contextlib.closing(NetworkTestClient(
-            "/home/kristoffer/dev/imitation/datagen/eval/runs/ResNet8_bs=32_lt=MSE_lr=0.001_c=run6/best.pth",
-            device="cuda")) as nc:
-        nc.loadGatePositions(nc.config.gates['poses'])
+            "/home/kristoffer/dev/imitation/datagen/eval/runs/X1Gate/ResNet8_bs=32_lt=MSE_lr=0.001_c=run11/epoch7.pth",
+            device="cuda", raceTrackName="track10")) as nc:
+        # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
         nc.run()
