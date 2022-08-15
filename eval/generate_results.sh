@@ -8,8 +8,8 @@
 
 # dataset folder
 DATASETS=/media/micha/eSSD/datasets
-DFOLDER=/X4Gates_Circles
-#DATASETS=/home/micha/dev/datasets/droneracing
+DFOLDER=/X4Gates_Circle_speedtest30s
+DATASETS=/home/micha/dev/datasets/droneracing
 #DFOLDER=/X4Gates_Circle_1
 #DATASETS=/data/datasets
 #DFOLDER=/X4Gates_Circle_2

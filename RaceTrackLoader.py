@@ -20,6 +20,7 @@ from torch.utils.data import Dataset
 import torch.nn.functional as fn
 
 import util
+import numpy as np
 
 '''
 loads data for single race track (usually called trackXX with XX in [0:100]
@@ -31,7 +32,7 @@ item contains timestamp, waypoints, pose, imu:list, path of left image : string,
 class RacetrackLoader:
 
     def __init__(self, dataset_basepath: str, dataset_basename: str, raceTrackName: str,
-                 localTrajectoryLength: int = 3, skipLastXImages=0):
+                 localTrajectoryLength: int = 3, skipLastXImages=0, skipFirstXImages=0):
         '''
         INIT VALUES
         '''
@@ -61,10 +62,11 @@ class RacetrackLoader:
         self.raceTrackName = raceTrackName
 
         self.skipLastXImages = -1 if skipLastXImages == 0 else skipLastXImages * -1
+        self.skipFirstXImages = 0 if skipFirstXImages < 1 else skipFirstXImages
 
     def __iter__(self):
 
-        for i, frame in enumerate(self.data[:self.skipLastXImages]):
+        for i, frame in enumerate(self.data[self.skipFirstXImages:self.skipLastXImages]):
             # load left image
             lipath = self.DATASET_PATH_LEFT + "/" + frame['image_name'] + ".png"
 
@@ -135,7 +137,7 @@ class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, localTrajectoryLength: int = 3, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,
                  # imageScale in percent of original image size
-                 imageTransforms=None, skipLastXImages=0, max_velocity=2
+                 imageTransforms=None, skipLastXImages=0, skipFirstXImages=0, max_velocity=2
                  ):
 
         # create image transform to transform image to tensor
@@ -155,12 +157,12 @@ class RaceTracksDataset(Dataset):
                 continue
             trackname = Path(path).parts[-1]
             self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, localTrajectoryLength,
-                                                  skipLastXImages=skipLastXImages))
+                                                  skipLastXImages=skipLastXImages, skipFirstXImages=skipFirstXImages))
 
         self.data = list(chain(*self.rtLoaders))
 
         # filter out data points with too high velocity
-        self.data = list(filter(lambda x: util.magnitude(x[5][:3]) > max_velocity, self.data))
+        # self.data = list(filter(lambda x: util.magnitude(np.array(x[5][:3])) > max_velocity, self.data))
 
         self.device = device
         self.yawMaxCommand = yawMaxCommand
