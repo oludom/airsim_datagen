@@ -41,7 +41,7 @@ class AirSimInterface:
         '''
 
         # configuration file
-        self.configFile = open('./orb_imitation/datagen/config.json', "r")
+        self.configFile = open('./orb_imitation/datagen/config_onegate.json', "r")
 
         self.config = {}
         self.loadConfig(self.configFile)

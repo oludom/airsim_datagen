@@ -6,15 +6,11 @@
     "roundtime": 60,
     "waypoints_per_segment": 20,
     "gate_basename": "BP_AirLab2m1Gate_",
-    "dataset_basename": "Onegate-l-3",
+    "dataset_basename": "test",
     "dataset_basepath": "/media/data2/teamICRA/X4Gates_Circles_rl18tracks/",
     "gates": {
         "poses": [
-            [1.0556249618530273, 3.7359390258789062, -0.75, 0.0],
-            [5.055624961853027, 8.235932350158691, -0.75, 270.0],
-            [10.555624961853027, 3.7359328269958496, -0.75, 180.0],
-            [5.055624961853027, -0.7640624642372131, -0.75, 90.0]
-        ],
+            [1.0556249618530273, 3.7359390258789062, -0.75, 0.0]],
         "range": {
             "x": [-0.5, 0.5],
             "y": [-0.5, 0.5],
@@ -22,7 +18,7 @@
             "yaw": [0, 0]
         },
         "grid_size": 3,
-        "number_configurations": 40
+        "number_configurations": 10
     }
 }
 

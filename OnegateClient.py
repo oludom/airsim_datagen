@@ -94,9 +94,9 @@ class SimClient(AirSimInterface):
 
         # takeoff
         self.client.takeoffAsync().join()
-        # self.client.simPause(True)
+            # self.client.simPause(True)
         self.client.rotateToYawAsync(90)
-        # self.client.simPause(False)
+            # self.client.simPause(False)
 
         # make sure drone is not drifting anymore after takeoff
         time.sleep(3)
@@ -125,7 +125,8 @@ class SimClient(AirSimInterface):
 
         Wpath, WpathComplete = self.convertTrajectoryToWaypoints(Wtimed_waypoints, Wtrajectory,
                                                                  evaltime=self.config.roundtime)
-
+        
+        
         # save current configuration and trajectory in data set folder
         data = {
             "waypoints": WpathComplete
@@ -162,9 +163,16 @@ class SimClient(AirSimInterface):
             #     self.c.clear()
 
             # get and plot current waypoint (blue)
+            # print(len(WpathComplete))
+            # W = WpathComplete[0:(len(WpathComplete)//5)]
+            # print(W[0])
             wp = WpathComplete[cwpindex]
-
+            # print(f"waypoint in inteference phase : {wp}")
+            # print(f"waypoint after minimumsnaptrajectory : {WpathComplete}")
+            # print(f"Len waypoint : {len(WpathComplete)}")
+            
             # show markers if applicable
+
             self.showMarkers(showMarkers, wp)
 
             # get current time and time delta
@@ -175,6 +183,8 @@ class SimClient(AirSimInterface):
             nextIMU = tn - lastIMU > timePerIMU
             nextPID = tn - lastPID > timePerPID
 
+            W = WpathComplete[0:(len(WpathComplete)//5)]
+            print(f"Index {cwpindex}")
             if showMarkers:
                 current_drone_pose = self.getPositionUAV()
                 self.client.simPlotPoints(
@@ -216,7 +226,6 @@ class SimClient(AirSimInterface):
                 self.client.simPause(False)
                 postpause = time.time()
                 pausedelta = postpause - prepause
-                print(pausedelta)
                 if self.config.debug:
                     self.c.addstr(10, 0, f"pausedelta: {pausedelta}")
                 lastWP += pausedelta
@@ -227,13 +236,13 @@ class SimClient(AirSimInterface):
             if nextPID:
                 # get current state
                 Wcstate = self.getState()
-                print(f"World yaw: {Wcstate[3]}")
+                # print(f"World yaw: {Wcstate[3]}")
                 # set goal state of pid controller
                 Bgoal = vector_world_to_body(wp[:3], Wcstate[:3], Wcstate[3])
                 # desired yaw angle is target point yaw angle world minus current uav yaw angle world 
                 ByawGoal = angleDifference(wp[3], degrees(Wcstate[3]))
                 # print(f"World yaw: {Wcstate[3]}")
-                print(f"angle target: {ByawGoal:5.4f}")
+                # print(f"angle target: {ByawGoal:5.4f}")
                 ctrl.setGoal([*Bgoal, ByawGoal])
                 # update pid controller
                 ctrl.update(tn - lastPID)
@@ -256,7 +265,7 @@ class SimClient(AirSimInterface):
                     yaw_mode (YawMode, optional):
                     vehicle_name (str, optional): Name of the multirotor to send this command to
                 '''
-                print(f'x = {float(Wvel[0])}, y ={float(Wvel[1])}, z ={float(Wvel[2])}')
+                # print(f'x = {float(Wvel[0])}, y ={float(Wvel[1])}, z ={float(Wvel[2])}')
                 self.client.moveByVelocityAsync(float(Wvel[0]), float(Wvel[1]), float(Wvel[2]),
                                                 duration=float(timePerPID), yaw_mode=airsim.YawMode(False, Wyaw))
 
@@ -268,11 +277,14 @@ class SimClient(AirSimInterface):
                 self.c.refresh()
 
             # increase current waypoint index if time per waypoint passed and if there are more waypoints available in path
-            if nextWP and len(WpathComplete) > (cwpindex + 1):
+            # if nextWP and len(WpathComplete) > (cwpindex + 1):
+            #     cwpindex = cwpindex + 1
+            #     lastWP = tn
+            if nextWP and len(W) > (cwpindex + 1):
                 cwpindex = cwpindex + 1
                 lastWP = tn
             # end mission when no more waypoints available
-            if len(WpathComplete) <= (cwpindex + 1):
+            if len(W) <= (cwpindex + 1):
                 mission = False
         if showMarkers:
             # clear persistent markers
