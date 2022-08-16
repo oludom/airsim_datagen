@@ -139,8 +139,8 @@ class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,
                  # imageScale in percent of original image size
-                 imageTransforms=None, loadDepth=False,
-                 *args, **kwargs
+                 imageTransforms=None, loadRGB=True, loadDepth=False, loadOrb=False,
+                                                                              *args, **kwargs
                  ):
 
         # create image transform to transform image to tensor
@@ -171,12 +171,14 @@ class RaceTracksDataset(Dataset):
         self.imageScale = imageScale
         self.grayScale = grayScale
         self.first = True
-        self.loadDepth = loadDepth
+        self.loadRGB = loadRGB
+        self.loadD = loadDepth
+        self.loadOrb = loadOrb
 
     def __getitem__(self, index):
         _, _, _, _, lipath, dpath, velocity, Wvelocity = self.data[index]
         label = torch.tensor(velocity, dtype=torch.float32)
-        sample = self.loadImage(lipath, dpath)
+        sample = self.loadSample(lipath, dpath)
         # move to device
         label = label.to(self.device)
         sample = sample.to(self.device)
@@ -185,17 +187,40 @@ class RaceTracksDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    def loadImage(self, path, depthpath=None):
-        image = cv2.imread(path)
-        depthimage = None
-        if not self.loadDepth:
-            depthpath = None
-        if depthpath is not None:
-            depthimage = pfm.read_pfm(depthpath)
-            depthimage = depthimage[0]
-            depthimage = transforms.Compose([
-                transforms.ToTensor(),
-            ])(depthimage)
+    def loadSample(self, imagePath, depthpath=None):
+
+        sample = None
+
+        # load image
+        if self.loadRGB:
+            sample = self.loadImage(imagePath)
+
+        if self.loadD:
+            if depthpath is None:
+                raise Exception("No depth path given")
+            depthimage = self.loadDepth(depthpath)
+
+            if sample is not None:
+                sample = torch.cat((sample, depthimage), 0)
+            else:
+                sample = depthimage
+
+        # apply transforms
+        if self.imageTransform:
+            sample = self.imageTransform(sample)
+
+        return sample
+
+    def loadDepth(self, depthpath):
+        depthimage = pfm.read_pfm(depthpath)
+        depthimage = depthimage[0]
+        depthimage = transforms.Compose([
+            transforms.ToTensor(),
+        ])(depthimage)
+        return depthimage
+
+    def loadImage(self, imagePath):
+        image = cv2.imread(imagePath)
 
         if self.grayScale:
             # not tested after recent changes
@@ -203,6 +228,7 @@ class RaceTracksDataset(Dataset):
 
         # scale down
         if not self.imageScale == 100:
+            # not tested after recent changes
             scale_percent = self.imageScale  # percent of original size
             width = int(image.shape[1] * scale_percent / 100)
             height = int(image.shape[0] * scale_percent / 100)
@@ -215,14 +241,8 @@ class RaceTracksDataset(Dataset):
             transforms.ToTensor(),
         ])(image)
 
-        if depthpath is not None:
-            image = torch.cat((image, depthimage), 0)
-
-        # apply transforms
-        if self.imageTransform:
-            image = self.imageTransform(image)
-
         return image
+
 
     '''
     calculate velocity vector
