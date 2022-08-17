@@ -22,6 +22,7 @@ import torch.nn.functional as fn
 import util
 import numpy as np
 import pfm
+import orb
 
 '''
 loads data for single race track (usually called trackXX with XX in [0:100]
@@ -139,7 +140,7 @@ class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,
                  # imageScale in percent of original image size
-                 imageTransforms=None, loadRGB=True, loadDepth=False, loadOrb=False,
+                 imageTransforms=None, loadRGB=True, loadDepth=False, loadOrb=False, orb_features=1000,
                                                                               *args, **kwargs
                  ):
 
@@ -174,11 +175,13 @@ class RaceTracksDataset(Dataset):
         self.loadRGB = loadRGB
         self.loadD = loadDepth
         self.loadOrb = loadOrb
+        self.orb = cv2.ORB_create(nfeatures=orb_features)
+        self.orb_features_cache = [None for _ in range(len(self.data))]
 
     def __getitem__(self, index):
         _, _, _, _, lipath, dpath, velocity, Wvelocity = self.data[index]
         label = torch.tensor(velocity, dtype=torch.float32)
-        sample = self.loadSample(lipath, dpath)
+        sample = self.loadSample(lipath, index, dpath)
         # move to device
         label = label.to(self.device)
         sample = sample.to(self.device)
@@ -187,13 +190,16 @@ class RaceTracksDataset(Dataset):
     def __len__(self):
         return len(self.data)
 
-    def loadSample(self, imagePath, depthpath=None):
+    def loadSample(self, imagePath, index, depthpath=None):
 
         sample = None
 
+        if self.loadRGB or self.loadOrb:
+            image = cv2.imread(imagePath)
+
         # load image
         if self.loadRGB:
-            sample = self.loadImage(imagePath)
+            sample = self.loadImage(image)
 
         if self.loadD:
             if depthpath is None:
@@ -205,11 +211,37 @@ class RaceTracksDataset(Dataset):
             else:
                 sample = depthimage
 
-        # apply transforms
+        # apply transforms before adding orb mask
         if self.imageTransform:
             sample = self.imageTransform(sample)
 
+        if self.loadOrb:
+            orbmask = self.calculateOrbMask(image, index)
+            if sample is not None:
+                sample = torch.cat((sample, orbmask), 0)
+            else:
+                sample = orbmask
+
         return sample
+
+    def calculateOrbMask(self, image, index):
+
+        if self.orb_features_cache[index] is None:
+            kp, des, _, _, _ = orb.get_orb(image)
+            self.orb_features_cache[index] = (kp, des)
+        else:
+            kp, des = self.orb_features_cache[index]
+        # convert to torch tensor
+        image = transforms.Compose([
+            transforms.ToTensor(),
+        ])(image)
+        orbmask = torch.zeros_like(image[0])
+        for el in kp:
+            x, y = el.pt
+            orbmask[int(y), int(x)] = 1
+        orbmask = orbmask.unsqueeze(0)
+        return orbmask
+
 
     def loadDepth(self, depthpath):
         depthimage = pfm.read_pfm(depthpath)
@@ -219,8 +251,7 @@ class RaceTracksDataset(Dataset):
         ])(depthimage)
         return depthimage
 
-    def loadImage(self, imagePath):
-        image = cv2.imread(imagePath)
+    def loadImage(self, image):
 
         if self.grayScale:
             # not tested after recent changes
