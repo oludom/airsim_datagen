@@ -47,6 +47,7 @@ import MAVeric.trajectory_planner as maveric
 from UnityPID import VelocityPID
 
 from util import *
+import config
 
 torch.set_grad_enabled(False)
 
@@ -80,7 +81,7 @@ class NetworkTestClient(SimClient):
 
         self.loadGatePositions(self.config.gates['poses'])
 
-        self.model = resnet8.ResNet8(input_dim=4, output_dim=4, f=.25)
+        self.model = resnet8.ResNet8(input_dim=config.num_input_channels, output_dim=4, f=config.resnet_factor)
         # if device == 'cuda':
         #     self.model = nn.DataParallel(self.model)
         #     cudnn.benchmark = True
@@ -128,7 +129,7 @@ class NetworkTestClient(SimClient):
 
                 # get images from AirSim API
 
-                image = self.loadWithAirsim(True)
+                image = self.loadWithAirsim(config.input_channels['depth'])
 
                 images = torch.unsqueeze(image, dim=0)
                 images = images.to(self.dev)
@@ -233,7 +234,9 @@ class NetworkTestClient(SimClient):
             ])(depth)
             image = torch.cat((image, depth), dim=0)
 
-        # image = dn.preprocess(image)
+        if config.tf:
+            image = config.tf(image)
+
         return image
 
 
@@ -241,7 +244,7 @@ if __name__ == "__main__":
     import contextlib
 
     with contextlib.closing(NetworkTestClient(
-            "/home/kristoffer/dev/imitation/datagen/eval/runs/X1Gate/ResNet8_bs=32_lt=MSE_lr=0.001_c=run20/epoch10.pth",
-            device="cuda", raceTrackName="track0")) as nc:
+            "/home/kristoffer/dev/imitation/datagen/eval/runs/X1Gate/single_gate_comparison/ResNet8_l=rgb_f=0.25_bs=32_lt=MSE_lr=0.001_c=run0/epoch5.pth",
+            device=config.device, raceTrackName="track0")) as nc:
         # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
         nc.run()
