@@ -31,6 +31,18 @@ def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
     # return the resized image
     return resized
 
+# found here: https://stackoverflow.com/questions/61492452/how-to-check-if-opencv-is-using-gpu-or-not
+def is_cuda_cv(): # 1 == using cuda, 0 = not using cuda
+    try:
+        count = cv2.cuda.getCudaEnabledDeviceCount()
+        if count > 0:
+            return 1
+        else:
+            return 0
+    except:
+        return 0
+
+
 
 '''
 get_orb returns key points and descriptors for the left image and optionally the right image.
@@ -54,18 +66,18 @@ def get_orb(img_left, img_right=None, n_features=1000, max_matches=100, orb=None
 
 if __name__ == '__main__':
     # example for mono image
-    img = cv2.imread("../examples/16327480994671.png", 1)
+    img = cv2.imread("examples/16327480994671.png", 1)
     img = image_resize(img, width=600)
 
     kp, des, _, _, _ = get_orb(img)
 
     imgg = cv2.drawKeypoints(img, kp, None)
 
-    cv2.imwrite("../examples/orb.png", imgg)
+    cv2.imwrite("examples/orb.png", imgg)
 
     # example for stereo images
-    image_left = cv2.imread("../examples/image250_left.png", 1)
-    image_right = cv2.imread("../examples/image250_right.png", 1)
+    image_left = cv2.imread("examples/image250_left.png", 1)
+    image_right = cv2.imread("examples/image250_right.png", 1)
     image_left = image_resize(image_left, width=600)
     image_right = image_resize(image_right, width=600)
 
@@ -73,4 +85,18 @@ if __name__ == '__main__':
 
     imgg = cv2.drawMatches(image_left, lkp, image_right, rkp, matches, None)
 
-    cv2.imwrite("../examples/orb_stereo.png", imgg)
+    cv2.imwrite("examples/orb_stereo.png", imgg)
+
+
+    # gpu example
+
+    if is_cuda_cv():
+
+        cuimg = cv2.cuda_GpuMat()
+        cuimg.upload(img)
+        corb = cv2.cuda_ORB.create(1000)
+        kp, des, _, _, _ = get_orb(cuimg, orb=corb)
+
+        imgg = cv2.drawKeypoints(img, kp.download(), None)
+
+        cv2.imwrite("examples/orbgpu.png", imgg)
