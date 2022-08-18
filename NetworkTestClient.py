@@ -7,37 +7,26 @@ this runs the main loop and holds the settings for the simulation.
 
 
 '''
-
-import sys
-from urllib import response
-
 import pfm
-
-sys.path.append('../')
-sys.path.append('../../')
-sys.path.append('../../../')
 
 from AirSimInterface import AirSimInterface
 from SimClient import SimClient
 
 import airsim
 import numpy as np
-import pprint
-import curses
 import torch
 import torchvision.transforms as transforms
 import torch.backends.cudnn as cudnn
 import torch.nn as nn
 
-import os
 import time
 from math import *
 import time
 
-import cv2
 from copy import deepcopy
 
-import imitation.ResNet8 as resnet8
+import ResNet8 as resnet8
+import orb
 
 # import MAVeric polynomial trajectory planner
 import MAVeric.trajectory_planner as maveric
@@ -47,9 +36,13 @@ import MAVeric.trajectory_planner as maveric
 from UnityPID import VelocityPID
 
 from util import *
+import config
 
 torch.set_grad_enabled(False)
 
+
+now = lambda: int(round(time.time() * 1000))
+pd = lambda s, t: print(f"{t}: {now() - s}ms")
 
 class NetworkTestClient(SimClient):
 
@@ -80,7 +73,7 @@ class NetworkTestClient(SimClient):
 
         self.loadGatePositions(self.config.gates['poses'])
 
-        self.model = resnet8.ResNet8(input_dim=4, output_dim=4, f=.25)
+        self.model = resnet8.ResNet8(input_dim=config.num_input_channels, output_dim=4, f=config.resnet_factor)
         # if device == 'cuda':
         #     self.model = nn.DataParallel(self.model)
         #     cudnn.benchmark = True
@@ -128,13 +121,15 @@ class NetworkTestClient(SimClient):
 
                 # get images from AirSim API
 
-                image = self.loadWithAirsim(True)
+                image = self.loadWithAirsim(config.input_channels['depth'])
 
                 images = torch.unsqueeze(image, dim=0)
                 images = images.to(self.dev)
 
                 # predict vector with network
+                s = now()
                 pred = self.model(images)
+                # pd(s, "inference")
                 pred = pred.to(torch.device('cpu'))
                 pred = pred.detach().numpy()
                 pred = pred[0]  # remove batch
@@ -186,9 +181,12 @@ class NetworkTestClient(SimClient):
 
 
     def loadWithAirsim(self, withDepth = False):
+        
+        start = now()
         # AirSim API rarely returns empty image data
         # 'and True' emulates a do while loop
         loopcount = 0
+        sample = None
         while (True):
             if withDepth:
 
@@ -207,9 +205,12 @@ class NetworkTestClient(SimClient):
                     ]
                 )
             left = res[0]
+            # pd(start, f"lc{loopcount}")
 
             img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8)
             image = img1d.reshape(left.height, left.width, 3)
+
+            # pd(start, f"s1")
 
             # check if image contains data, repeat request if empty
             if image.size:
@@ -221,27 +222,56 @@ class NetworkTestClient(SimClient):
         if withDepth:
             # format depth image
             depth = pfm.get_pfm_array(res[1]) # [0] ignores scale
+            # pd(start, f"d2")
+
+        if config.input_channels['orb']:
+            kp, des, _, _, _ = orb.get_orb(image)
+            # pd(start, f"o3")
 
         # preprocess image
         image = transforms.Compose([
             transforms.ToTensor(),
         ])(image)
 
+        if config.input_channels['rgb']:
+            sample = image
+
+        # pd(start, f"i4")
+
         if withDepth:
             depth = transforms.Compose([
                 transforms.ToTensor(),
             ])(depth)
-            image = torch.cat((image, depth), dim=0)
+            # pd(start, f"d5")
+            if sample is not None:
+                sample = torch.cat((sample, depth), dim=0)
+            else:
+                sample = depth
+            # pd(start, f"d6")
 
-        # image = dn.preprocess(image)
-        return image
+        if config.tf:
+            sample = config.tf(sample)
+            # pd(start, f"tf7")
+
+        if config.input_channels['orb']:
+            orbmask = torch.zeros_like(image[0])
+            for el in kp:
+                x, y = el.pt
+                orbmask[int(y), int(x)] = 1
+            orbmask = orbmask.unsqueeze(0)
+            if sample is not None:
+                sample = torch.cat((sample, orbmask), 0)
+            else:
+                sample = orbmask
+
+        return sample
 
 
 if __name__ == "__main__":
     import contextlib
 
     with contextlib.closing(NetworkTestClient(
-            "/home/kristoffer/dev/imitation/datagen/eval/runs/X1Gate/ResNet8_bs=32_lt=MSE_lr=0.001_c=run20/epoch10.pth",
-            device="cuda", raceTrackName="track0")) as nc:
+            "/home/kristoffer/dev/imitation/datagen/eval/runs/X1Gate/single_gate_comparison/ResNet8_l=o_f=0.25_bs=32_lt=MSE_lr=0.001_c=run0/epoch5.pth",
+            device=config.device, raceTrackName="track1")) as nc:
         # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
         nc.run()
