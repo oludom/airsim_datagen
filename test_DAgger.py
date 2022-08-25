@@ -1,47 +1,49 @@
-#!/usr/bin/env python
-
-'''
-
-simulation client for AirSimInterface.py
-this runs the main loop and holds the settings for the simulation. 
-
-
-'''
-
-# from orb_imitation.datagen.AirSimInterface import AirSimInterface/
-from AirSimInterface import AirSimInterface
-import airsim
+from operator import mod
+from re import I
+from signal import pause
+from tokenize import Triple
+from SimClient import SimClient
+from NetworkTestClient import NetworkTestClient
+import time
 import numpy as np
-import pprint
+from UnityPID import VelocityPID
+from copy import deepcopy
+import airsim
+import torch
+import argparse
+from AirSimInterface import AirSimInterface
+from util import *
+from math import *
+import os
+from models.ResNet8 import ResNet8
+from models.racenet8 import RaceNet8
+import torchvision.transforms as transforms
+import torch.backends.cudnn as cudnn
+import torch.nn as nn
 import curses
 
-import os
-import time
-from math import *
-import time
 
-import cv2
-from copy import deepcopy
+parser = argparse.ArgumentParser('Add argument for AirsimClient')
+parser.add_argument('--weight','-w',type=str,default='')
+parser.add_argument('--track','-t',type=str,default='track0')
+arg = parser.parse_args()
+model_weight_path = arg.weight
+track_name = arg.track
+class DaggerClient(AirSimInterface):
+    # def __init__(self, raceTrackName="track0", beta=0.99, *args, **kwargs):
+    #     super().__init__(raceTrackName, *args, **kwargs)
+    #     self.beta = beta
+    #     self.expert_steps = int(50*beta)
+    #     self.agent_Steps = 50 - self.expert_steps
 
-from util import *
-
-# import MAVeric polynomial trajectory planner
-# import MAVeric.trajectory_planner as maveric
-
-# use custom PID controller
-# from VelocityPID import VelocityPID
-from UnityPID import VelocityPID
-
-
-class SimClient(AirSimInterface):
-
-    def __init__(self, raceTrackName="track0", *args, **kwargs):
-
-        # init super class (AirSimController)
-        super().__init__(raceTrackName=raceTrackName, *args, **kwargs)
-
-        # do custom setup here
-
+    
+    def __init__(self, raceTrackName=track_name, modelPath=None, device='cpu', beta=0.99, *args, **kwargs):
+        super().__init__(raceTrackName, modelPath, *args, **kwargs)
+        self.beta = beta
+        self.expert_steps = int(50*self.beta)
+        self.agent_Steps = 50 - self.expert_steps
+        # self.createDataset = True
+        # self.createDataset = createDataset
         if self.config.debug:
             self.c = curses.initscr()
             curses.noecho()
@@ -51,13 +53,20 @@ class SimClient(AirSimInterface):
         self.currentGateConfiguration = 0
 
         self.timestep = 1. / self.config.framerate
+        self.model = ResNet8(input_dim=3, output_dim=4, f=1)
+        print(modelPath)
+        if modelPath is not None:
+            self.model.load_state_dict(torch.load(modelPath))
+            if device == 'cuda':
+                self.model = nn.DataParallel(self.model)
+                cudnn.benchmark = True
 
-    '''
-    this function should be called at end of lifetime of this object (see contextlib)
-    close all opened files here
-    and reset simulation
-    '''
+            # self.model.load_state_dict(torch.load(modelPath))
 
+            self.device = device
+            self.dev = torch.device(device)
+            self.model.to(self.dev)
+            self.model.eval()
     def close(self):
 
         self.client.simPause(False)
@@ -70,25 +79,7 @@ class SimClient(AirSimInterface):
 
         # close super class (AirSimController)
         super().close()
-
-
-    '''
-    run mission
-    - initialize velocity pid controller
-    - generate trajectory through gates
-    - save current configuration to dataset folder
-    - follow trajectory with sampled waypoints
-    showMarkers: boolean, if true, trajectory will be visualized with red markers in simulation
-    captureImages: boolean, if true, each iteration will capture a frame of each camera, simulation is paused for this
-    velocity_limit: float, maximum velocity of the vehicle
-
-    variable name prefix:
-    W: coordinates in world frame
-    B: coordinates in body frame (drone/uav)
-    '''
-
-    def gateMission(self, showMarkers=True, captureImages=True, velocity_limit=2):
-
+    def gateMission(self, showMarkers=True, captureImages=True):
         mission = True
 
         # reset sim
@@ -129,19 +120,17 @@ class SimClient(AirSimInterface):
         data = {
             "waypoints": WpathComplete
         }
-        self.saveConfigToDataset(gateConfig, data)
+        # self.saveConfigToDataset(gateConfig, data)
 
         # show trajectory
         if showMarkers:
             self.client.simPlotPoints(Wpath, color_rgba=[1.0, 0.0, 0.0, .2], size=10.0, duration=-1.0,
                                       is_persistent=True)
-
+        
         lastWP = time.time()
         lastImage = time.time()
         lastIMU = time.time()
         lastPID = time.time()
-
-        WLastAirSimVel = [0., 0., 0., 0.]
 
         timePerWP = float(self.config.roundtime) / len(WpathComplete)
         timePerImage = 1. / float(self.config.framerate)
@@ -150,6 +139,7 @@ class SimClient(AirSimInterface):
 
         cwpindex = 0
         cimageindex = 0
+        
         if self.config.debug:
             self.c.clear()
 
@@ -162,8 +152,9 @@ class SimClient(AirSimInterface):
             # if self.config.debug:
             #     self.c.clear()
 
+            expert_step = cwpindex
+            agent_step = 0
             # get and plot current waypoint (blue)
-            print(len(WpathComplete))
             wp = WpathComplete[cwpindex]
 
             # show markers if applicable
@@ -209,19 +200,17 @@ class SimClient(AirSimInterface):
                 self.client.simPause(True)
 
                 Bvel, Byaw = ctrl.getVelocityYaw()
-                print(Bvel)
-                Bvel = Bvel / velocity_limit
-                
+                print("Dung-------")
                 # save images of current frame
-                self.captureAndSaveImages(cwpindex, cimageindex, [*Bvel, Byaw], WLastAirSimVel)
+                self.captureAndSaveImages(cwpindex, cimageindex, [*Bvel, Byaw])
                 cimageindex += 1
 
                 # unpause simulation
                 self.client.simPause(False)
                 postpause = time.time()
                 pausedelta = postpause - prepause
-                if self.config.debug:
-                    self.c.addstr(10, 0, f"pausedelta: {pausedelta}")
+                # if self.config.debug:
+                #     self.c.addstr(10, 0, f"pausedelta: {pausedelta}")
                 lastWP += pausedelta
                 lastIMU += pausedelta
                 tn += pausedelta
@@ -239,69 +228,113 @@ class SimClient(AirSimInterface):
                 ctrl.setGoal([*Bgoal, ByawGoal])
                 # update pid controller
                 ctrl.update(tn - lastPID)
-                # get current pid output´
-                Bvel, Byaw = ctrl.getVelocityYaw()
-                print(Bvel)
+                # get current pid output
+                # viet lai
+                prepause = time.time()
+                self.client.simPause(True)
+                if (expert_step % self.expert_steps == 0) and (expert_step != 0): # agent policy 
+                    # Agent Policy
+                    image = self.loadWithAirsim()
+                    images = torch.unsqueeze(image, dim=0)
+                    images = images.to(self.dev)
+                    
+                    # predict vector with network
+                    pred = self.model(images)
+                    pred = pred.to(torch.device('cpu'))
+                    pred = pred.detach().numpy()
+                    pred = pred[0]  # remove batch
+                    Bvel, Byaw = pred[:3], pred[3]
+                    agent_step += 1
+                    expert_step +=1
+                    
+                    # agent_step = 0
 
-                print(f"magnitude: {magnitude(Bvel)}")
-                Bvel_percent = magnitude(Bvel) / velocity_limit
-                print(f"percent: {Bvel_percent*100}")
-                # if magnitude of pid output is greater than velocity limit, scale pid output to velocity limit
-                if Bvel_percent > 1:
-                    Bvel = Bvel / Bvel_percent
+                    # rotate velocity command such that it is in world coordinates
+                else: # Expert Policy 
+                    Bvel, Byaw = ctrl.getVelocityYaw()
+                    expert_step +=1
+                self.client.simPause(False)
+                postpause = time.time()
+                pausedelta = prepause - postpause
+                # tn += pausedelta
+                # lastImage = tn
+                # if (agent_step % self.agent_Steps == 0) and (agent_step != 0):
+                #     agent_step = 0
+                #     expert_step = +1 
 
 
-                # rotate velocity command such that it is in world coordinates
+
                 Wvel = vector_body_to_world(Bvel, [0, 0, 0], Wcstate[3])
-
                 # add pid output for yaw to current yaw position
                 Wyaw = degrees(Wcstate[3]) + Byaw
-
-                WLastAirSimVel = [*Wvel, Wyaw]
 
                 '''
                 Args:
                     vx (float): desired velocity in world (NED) X axis
-                    vy (float): desired velocity in world (NED) Y axis
-                    vz (float): desired velocity in world (NED) Z axis
-                    duration (float): Desired amount of time (seconds), to send this command for
-                    drivetrain (DrivetrainType, optional):
-                    yaw_mode (YawMode, optional):
-                    vehicle_name (str, optional): Name of the multirotor to send this command to
+                    vy (float): desired velocity icwpName of the multirotor to send this command to
                 '''
                 self.client.moveByVelocityAsync(float(Wvel[0]), float(Wvel[1]), float(Wvel[2]),
                                                 duration=float(timePerPID), yaw_mode=airsim.YawMode(False, Wyaw))
 
                 # save last PID time
-                lastPID = tn
+                lastPID = tn + pausedelta
 
             # debug output
             if self.config.debug:
                 self.c.refresh()
 
             # increase current waypoint index if time per waypoint passed and if there are more waypoints available in path
-            if nextWP and len(WpathComplete) > (cwpindex + 1): 
+            print(nextWP)
+            print(cwpindex)
+            print(len(WpathComplete))
+            
+            if cwpindex == 130:
+                mission = False
+                break
+            if nextWP and len(WpathComplete) > (cwpindex + 1):
                 cwpindex = cwpindex + 1
                 lastWP = tn
+
             # end mission when no more waypoints available
-            if len(WpathComplete) - 80 <= (cwpindex + 1):   # ignore last 80 waypoints
-                mission = False
+            # if len(WpathComplete) <= (cwpindex + 1):
+            
+        #### Done
+
         if showMarkers:
             # clear persistent markers
             self.client.simFlushPersistentMarkers()
-
     def showMarkers(self, showMarkers, wp):
         if showMarkers:
             self.client.simPlotPoints([airsim.Vector3r(wp[0], wp[1], wp[2])], color_rgba=[0.0, 0.0, 1.0, 1.0],
                                       size=10.0, duration=self.timestep, is_persistent=False)
-
     # set gate poses in simulation to provided configuration
     # gates: [ [x, y, z, yaw], ...] 
     def loadGatePositions(self, gates):
         # load gate positions
         for i, gate in enumerate(gates):
             self.setPositionGate(i + 1, gate)
+    def loadWithAirsim(self):
+        # get images from AirSim API
+        res = self.client.simGetImages(
+            [
+                airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
+                # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
+                # airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
+            ]
+        )
+        left = res[0]
 
+        img1d = np.fromstring(left.image_data_uint8, dtype=np.uint8)
+        image = img1d.reshape(left.height, left.width, 3)
+        # image = np.flipud(image) - np.zeros_like(image)  # pytorch conversion from numpy does not support negative stride
+
+        # preprocess image
+        image = transforms.Compose([
+            transforms.ToTensor(),
+        ])(image)
+
+        # image = dn.preprocess(image)
+        return image
     # load the next gate pose configuration in self.gateConfigurations
     # if index overflows, wraps around to 0 and repeats configurations
     def loadNextGatePosition(self):
@@ -361,97 +394,77 @@ class SimClient(AirSimInterface):
         self.gateConfigurations = remove_duplicates(self.gateConfigurations)
         self.gateConfigurations.tolist()
 
-    # helper function for visualizing gate center points and waypoints offset from gate centers with certain distance from gate and same rotation, unused
-    def printGateWPs(self):
-
-        self.reset()
-        self.client.takeoffAsync().join()
-        self.loadGatePositions(self.config.gates['poses'])
-
-        self.captureAndSaveImages()
-
-        gates = [
-            [5.055624961853027, -0.7640624642372131, -0.75],
-            [10.555624961853027, 3.7359328269958496, -0.75],
-            [5.055624961853027, 8.235932350158691, -0.75],
-            [1.0556249618530273, 3.7359390258789062, -0.75]
-        ]
-
-        wps = self.generateTrajectoryFromCurrentGatePositions(1, False)
-        plot = [self.toVector3r(wp) for wp in wps]
-        self.client.simPlotPoints(plot, color_rgba=[1.0, 0.0, 0.0, .2], size=10.0, duration=-1, is_persistent=True)
-
-        plot = [self.toVector3r(wp) for wp in gates]
-        self.client.simPlotPoints(plot, color_rgba=[0.0, 1.0, 0.0, .2], size=10.0, duration=-1, is_persistent=True)
-
-        print("wps")
-        for wp in wps:
-            print(wp)
-
-        time.sleep(10)
-        self.client.simFlushPersistentMarkers()
-
-    # test to check roration of aditional waypoints for each gate, unused
-    def rotationTest(self):
-
-        self.reset()
-        self.client.takeoffAsync().join()
-        self.loadGatePositions(self.config.gates['poses'])
-
-        yaw = radians(90)
-        gate = np.array([5.055624961853027, -0.7640624642372131, -0.75])
-
-        gate1 = deepcopy(gate)
-
-        y1 = np.array([0, 1, 0])
-        # rotation matrix z-axis
-        rot = np.array([[cos(yaw), sin(yaw), 0], [-1 * sin(yaw), cos(yaw), 0], [0, 0, 1]])
-        rot1 = rot.dot(np.transpose(y1))
-        gate1 += rot1
-
-        # test vector
-        tv = np.array([1, 0, 0])
-
-        tvout = rot.dot(np.transpose(tv))
-        print("tv", tv)
-        print("to", tvout)
-
-        gate2 = deepcopy(gate)
-        gate2 -= rot1
-
-        plot = [self.toVector3r(wp) for wp in [gate1, gate2]]
-
-        self.client.simPlotPoints(plot, color_rgba=[1.0, 0.0, 0.0, .2], size=10.0, duration=-1, is_persistent=True)
-        self.client.simPlotPoints([self.toVector3r(gate)], color_rgba=[0.0, 1.0, 0.0, .2], size=10.0, duration=-1,
-                                  is_persistent=True)
-        time.sleep(10)
-        self.client.simFlushPersistentMarkers()
-
     # wp: [x, y, z]
     # returns airsim.Vector3r()
     def toVector3r(self, wp):
         return airsim.Vector3r(wp[0], wp[1], wp[2])
-
-
 if __name__ == "__main__":
-
+    track_name = arg.track
     import contextlib
+    learning_rate = 0.001
+    learning_rate_change = 0.1
+    learning_rate_change_epoch = 10
+    batch_size = 32
 
+    path_init_weight = ""
+    loss_type = "MSE"
     configurations = []
 
-    with contextlib.closing(SimClient()) as sc:
-        # generate random gate configurations within bounds set in config.json
-        sc.generateGateConfigurations()
-        configurations = deepcopy(sc.gateConfigurations)
 
-    for i, gateConfig in enumerate(configurations):
-        with contextlib.closing(SimClient(raceTrackName=f"track{i}")) as sc:
-            sc.gateConfigurations = [gateConfig] # Create and save gate configuration of each iter
+    # with contextlib.closing(DaggerClient()) as sc:
+    #     # generate random gate configurations within bounds set in config.json
+    #     sc.generateGateConfigurations()
+    #     configurations = deepcopy(sc.gateConfigurations)
+    # rounds = 100
+    # for i, gateConfig in enumerate(configurations):
+    
+         # for i in range(rounds):
+        
+        # if i==0:
+        #     model_weight_path = arg.weight
+        # else:
+        #     model_weight_path = f'runs/ResNet32_ScaleV_body={batch_size}_lt={loss_type}_lr={learning_rate}_c={i-1}/best.pth'
 
-            sc.loadNextGatePosition() # Load gate position from GateConfig
+        # model_weight_path = f'runs/ResNet32_ScaleV_body={batch_size}_lt={loss_type}_lr={learning_rate}_c={i-1}/best.pth'
 
-            # fly mission
-            sc.gateMission(True, True)
+    # beta = 0.9
+    # for i in range(rounds):
+    #     if i ==0 :
+    #         os.system(f'python DaggerClient.py -w {path_init_weight}')
+    #     else:
+    #         model_weight_path = f'runs/ResNet32_ScaleV_body={batch_size}_lt={loss_type}_lr={learning_rate}_c={i-1}/best.pth'
+    #         os.system(f'python DaggerClient.py -w {model_weight_path}')
+   
 
-            sc.loadGatePositions(sc.config.gates['poses']) 
-            sc.reset()
+        # model_weight_path = arg.weight
+
+        # with contextlib.closing(DaggerClient(raceTrackName=f"track{i}",
+        #                         beta = beta,
+        #                         modelPath=model_weight_path,
+        #                         device="cuda")) as sc:
+        #     sc.gateConfigurations = [gateConfig]
+
+        #     sc.loadNextGatePosition()
+
+        #     # fly mission
+        #     sc.gateMission(False, True)
+        #     # sc.loadGatePositions([[3.555624961853027, 0.140624642372131, -0.65, -90.0]])
+        #     sc.loadGatePositions(sc.config.gates['poses'])
+        #     sc.reset()
+
+        # os.system(f'python3 ../train_newloader.py -pb /media/data2/teamICRA -db /media/data2/teamICRA/X4Gates_Circles_rl18tracks -n X1Gate100 -r {i} -p {model_weight_path}')
+        # exec(f'python3 ../train_newloader.py -pb /media/data2/teamICRA -db /media/data2/teamICRA/X4Gates_Circles_rl18tracks -n X1Gate100 -r {i} -p {model_weight_path}')
+    
+        # beta -= 0.05
+
+    with contextlib.closing(DaggerClient(
+            track_name,
+            model_weight_path,
+            beta= 0.9,
+            # "/media/data2/teamICRA/runs/ResNet32_Loadall_scalewithVmax_250mix_world_body=32_lt=MSE_lr=0.001_c=run0/best.pth",
+            device="cuda" )) as dc:
+        dc.loadGatePositions([[3.555624961853027, 0.140624642372131, -0.65, -90.0]])
+        dc.gateMission(True, True)
+        # dc.close()
+        dc.reset()
+        

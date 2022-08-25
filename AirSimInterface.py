@@ -12,10 +12,10 @@ COORDINATE SYSTEM:
 All AirSim API uses NED coordinate system, i.e., +X is North, +Y is East and +Z is Down. All units are in SI system. Please note that this is different from coordinate system used internally by Unreal Engine. In Unreal Engine, +Z is up instead of down and length unit is in centimeters instead of meters. AirSim APIs takes care of the appropriate conversions. The starting point of the vehicle is always coordinates (0, 0, 0) in NED system. Thus when converting from Unreal coordinates to NED, we first subtract the starting offset and then scale by 100 for cm to m conversion. The vehicle is spawned in Unreal environment where the Player Start component is placed. There is a setting called OriginGeopoint in settings.json which assigns geographic longitude, longitude and altitude to the Player Start component.
 '''
 
-import airsim
+# from orb_imitation.datagen import airsim
 import numpy as np
 import pprint
-
+import airsim
 import os
 import time
 from math import *
@@ -24,9 +24,9 @@ import json
 from copy import deepcopy
 
 import cv2
-
+# from orb_imitation.datagen import MAVeric
+# from MAVeric import trajectory_planner as maveric
 import MAVeric.trajectory_planner as maveric
-
 '''
 
 '''
@@ -207,7 +207,6 @@ class AirSimInterface:
 
         # current frame name
         cfname = "image" + str(idx)
-
         # AirSim API rarely returns empty image data
         # 'and True' emulates a do while loop
         loopcount = 0

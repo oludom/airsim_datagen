@@ -73,27 +73,25 @@ class NetworkTestClient(SimClient):
 
         # relead config file from dataset
         # configuration file
-        # self.configFile = open(f'{dataset_basepath}/{dataset_basename}/{raceTrackName}/config.json', "r")
+        self.configFile = open(f'{dataset_basepath}/{dataset_basename}/{raceTrackName}/config.json', "r")
 
-        # self.config = {}
-        # self.loadConfig(self.configFile)
+        self.config = {}
+        self.loadConfig(self.configFile)
 
-        # self.loadGatePositions(self.config.gates['poses'])
+        self.loadGatePositions(self.config.gates['poses'])
 
-        self.model = ResNet8(input_dim=3, output_dim=4, f=1)
-        print(device)
-        if modelPath is not None:
-            self.model.load_state_dict(torch.load(modelPath))
-            if device == 'cuda':
-                self.model = nn.DataParallel(self.model)
-                cudnn.benchmark = True
+        self.model = RaceNet8(input_dim=3, output_dim=4, f=1)
+        self.model.load_state_dict(torch.load(modelPath))
+        if device == 'cuda':
+            self.model = nn.DataParallel(self.model)
+            cudnn.benchmark = True
 
-            # self.model.load_state_dict(torch.load(modelPath))
+        # self.model.load_state_dict(torch.load(modelPath))
 
-            self.device = device
-            self.dev = torch.device(device)
-            self.model.to(self.dev)
-            self.model.eval()
+        self.device = device
+        self.dev = torch.device(device)
+        self.model.to(self.dev)
+        self.model.eval()
 
     def run(self):
 
@@ -133,12 +131,14 @@ class NetworkTestClient(SimClient):
                 image = self.loadWithAirsim()
 
                 images = torch.unsqueeze(image, dim=0)
-                
                 images = images.to(self.dev)
 
-                # predict vector with network
+                
+                h_last = torch.zeros(1,len(images),256).to(self.dev)
                 vmax = torch.tensor([1.1558, 0.4614, 0.2336, 0.1347])
-                pred = self.model(images)
+                # predict vector with network
+                pred, h_now = self.model(images, h_last)
+                h_last = h_now
                 pred = pred.to(torch.device('cpu'))
                 pred = pred * vmax
                 pred = pred.detach().numpy()
@@ -159,9 +159,9 @@ class NetworkTestClient(SimClient):
 
                 # send control command to airsim
                 cstate = self.getState()
-                scale = 2
+
                 # rotate velocity command such that it is in world coordinates
-                Wvel = vector_body_to_world(pred[:3]* scale, [0, 0, 0], cstate[3])
+                Wvel = vector_body_to_world(pred[:3], [0, 0, 0], cstate[3])
                 # Wvel = pred[:3] * 10
 
                 # add pid output for yaw to current yaw position
@@ -231,8 +231,7 @@ if __name__ == "__main__":
     import contextlib
 
     with contextlib.closing(NetworkTestClient(
-            "/media/data2/teamICRA/runs/ResNet32_Loadall_scalewithVmax_250mix_world_body=32_lt=MSE_lr=0.001_c=run0/best.pth",
-            # "/media/data2/teamICRA/runs/ResNet32_Loadall_scalewithVmax_250mix_world_body=32_lt=MSE_lr=0.001_c=run0/best.pth",
+            "/media/data2/teamICRA/runs/RaceNet32_1gate_250mix_scaleVmax_bodyframe=32_lt=MSE_lr=0.001_c=run0/best.pth",
             device="cuda", raceTrackName="track10")) as nc:
-        nc.loadGatePositions([[3.555624961853027, 0.140624642372131, -0.65, -90.0]])
+        nc.loadGatePositions([[4.555624961853027, 1.040624642372131, -0.65, -90.0]])
         nc.run()
