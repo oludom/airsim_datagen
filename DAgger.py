@@ -1,6 +1,12 @@
 import os
 import argparse
 
+
+"""
+This file use to run AirsimDAggerClient.py and the training code for Resnet 
+Relace train_newloader.py in line 25 with your training code to test.
+
+"""
 rounds = 99
 beta = 0.99
 learning_rate = 0.001
