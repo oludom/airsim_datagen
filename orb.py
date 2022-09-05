@@ -52,6 +52,8 @@ return: key points left image, descriptors left image, key points right image, d
 
 
 def get_orb(img_left, img_right=None, n_features=1000, max_matches=100, orb=None):
+    if len(img_left.shape) > 2:
+        img_left = cv2.cvtColor(img_left, cv2.COLOR_BGR2GRAY)
     if orb is None:
         orb = cv2.ORB_create(nfeatures=n_features)
     kp_left, des_left = orb.detectAndCompute(img_left, None)
