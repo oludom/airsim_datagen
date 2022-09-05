@@ -281,7 +281,7 @@ class SimClient(AirSimInterface):
                 cwpindex = cwpindex + 1
                 lastWP = tn
             # end mission when no more waypoints available
-            if len(WpathComplete) - 80 <= (cwpindex + 1):   # ignore last 80 waypoints
+            if len(WpathComplete) - 50 <= (cwpindex + 1):   # ignore last 80 waypoints
                 mission = False
         if showMarkers:
             # clear persistent markers

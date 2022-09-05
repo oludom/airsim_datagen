@@ -74,9 +74,9 @@ class NetworkTestClient(SimClient):
         self.loadGatePositions(self.config.gates['poses'])
 
         self.model = resnet8.ResNet8(input_dim=config.num_input_channels, output_dim=4, f=config.resnet_factor)
-        # if device == 'cuda':
-        #     self.model = nn.DataParallel(self.model)
-        #     cudnn.benchmark = True
+        if device == 'cuda':
+            self.model = nn.DataParallel(self.model)
+            cudnn.benchmark = True
 
         self.model.load_state_dict(torch.load(modelPath))
 
@@ -271,7 +271,7 @@ if __name__ == "__main__":
     import contextlib
 
     with contextlib.closing(NetworkTestClient(
-            "/home/kristoffer/dev/imitation/datagen/eval/runs/X1Gate/single_gate_comparison/ResNet8_l=o_f=0.25_bs=32_lt=MSE_lr=0.001_c=run0/epoch5.pth",
-            device=config.device, raceTrackName="track1")) as nc:
+            "/home/kristoffer/dev/orb_imitation/datagen/eval/runs/X4Gates/ResNet8_ds=X4Gates_Circle_right_l=rgbdo_f=0.25_bs=32_lt=MSE_lr=0.001_c=run0/epoch5.pth",
+            device=config.device, raceTrackName="track0")) as nc:
         # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
         nc.run()

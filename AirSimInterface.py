@@ -321,17 +321,17 @@ class AirSimInterface:
             # convert to xyz and yaw
             _, _, yaw = airsim.to_eularian_angles(orientation)
 
-            wp1, wp2 = self.create2WaypointsOffset(gp[:3], -yaw, 1)
+            wp1, wp2 = self.create2WaypointsOffset(gp[:3], -yaw, 2)
             wp1 = [wp1[0], wp1[1], wp1[2], degrees(-yaw)]
             wpg = [gp[0], gp[1], gp[2], degrees(-yaw)]
             wp2 = [wp2[0], wp2[1], wp2[2], degrees(-yaw)]
             # add waypoint
             # waypoints.append(wp2)
             waypoints.append(wpg)
-            waypoints.append(wp1)
+            # waypoints.append(wp1)
 
         # add uavwp again - starting point as endpoint
-        # waypoints.append(uavwp)
+        waypoints.append(uavwp)
 
         if traj:
             # call maveric to get trajectory
