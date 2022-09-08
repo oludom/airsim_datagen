@@ -34,14 +34,14 @@ import MAVeric.trajectory_planner as maveric
 
 class AirSimInterface:
 
-    def __init__(self, raceTrackName, createDataset=True):
+    def __init__(self, raceTrackName, createDataset=True, configFilePath='config.json'):
 
         ''' 
         INIT VALUES 
         '''
 
         # configuration file
-        self.configFile = open('config.json', "r")
+        self.configFile = open(configFilePath, "r")
 
         self.config = {}
         self.loadConfig(self.configFile)
@@ -96,7 +96,10 @@ class AirSimInterface:
             dconfigfile = open(self.DATASET_PATH + "/config.json", "w")
             self.configFile.seek(0)
             dconfig = json.load(self.configFile)
-            dconfig['gates']['poses'] = gates.tolist()
+            if isinstance(gates, list):
+                dconfig['gates']['poses'] = gates
+            else:
+                dconfig['gates']['poses'] = gates.tolist()
             dconfig['gates']['number_configurations'] = 1
 
             for key, value in data.items():
@@ -173,10 +176,16 @@ class AirSimInterface:
         if yaw == None:  # assume pos[3] is yaw
             yaw = pos[3]
         pose = airsim.Pose(airsim.Vector3r(pos[0], pos[1], pos[2]), airsim.to_quaternion(0, 0, radians(yaw)))
-        if idx < 1 or idx > 4:
+        if idx < 1:
             print("setPositionGate: error gate idx not found.")
             return
         self.client.simSetObjectPose(self.config.gate_basename + str(idx), pose, True)
+
+    def setPositionUAV(self, pos, yaw=None):
+        if yaw == None:  # assume pos[3] is yaw
+            yaw = pos[3]
+        pose = airsim.Pose(airsim.Vector3r(pos[0], pos[1], pos[2]), airsim.to_quaternion(0, 0, radians(yaw)))
+        self.client.simSetVehiclePose(pose, True)
 
     # ImuData: type ImuData (airsim sensor message)
     # returns time stamp, dict of ImuData
@@ -271,6 +280,8 @@ class AirSimInterface:
         if self.createDataset:
             print(f"{json.dumps(entry, indent=1)},", file=self.outputFile)
 
+            return img_rgb, depth
+
     def captureIMU(self):
         # get imu data
         imuData = self.client.getImuData()
@@ -328,10 +339,10 @@ class AirSimInterface:
             # add waypoint
             # waypoints.append(wp2)
             waypoints.append(wpg)
-            # waypoints.append(wp1)
+            waypoints.append(wp1)
 
         # add uavwp again - starting point as endpoint
-        waypoints.append(uavwp)
+        # waypoints.append(uavwp)
 
         if traj:
             # call maveric to get trajectory

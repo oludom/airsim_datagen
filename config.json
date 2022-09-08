@@ -3,27 +3,25 @@
     "framerate": 30,
     "imuRate": 400,
     "pidRate": 30,
-    "roundtime": 60,
+    "roundtime": 10,
     "waypoints_per_segment": 100,
     "gate_basename": "BP_AirLab2m1Gate_",
-    "dataset_basename": "X4Gates_Circle_right",
+    "dataset_basename": "X1Gate_eval",
     "dataset_basepath": "/home/kristoffer/dev/dataset",
     "gates": {
         "poses": [
-            [5.055624961853027, -0.7640624642372131, -0.75, -90.0],
-            [10.555624961853027, 3.7359328269958496, -0.75, 0.0],
-            [5.055624961853027, 8.235932350158691, -0.75, 90.0],
-            [1.0556249618530273, 3.7359390258789062, -0.75, 180.0]
+            [0.0, 4.0, -1.0, -90.0]
         ],
         "range": {
-            "x": [-0.5, 0.5],
-            "y": [-0.5, 0.5],
-            "z": [-0.5, 0.5],
+            "x": [-1.5, 1.5],
+            "y": [-1.5, 1.5],
+            "z": [-0.2, 0.2],
             "yaw": [0, 0]
         },
-        "grid_size": 3,
-        "number_configurations": 25
-    }
+        "grid_size": 7,
+        "number_configurations": 1
+    },
+    "uav_position": [-4.0, 4.0, -1.0, -90.0]
 }
 
 

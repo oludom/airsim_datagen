@@ -86,7 +86,7 @@ class NetworkTestClient(SimClient):
         self.model.to(self.dev)
         self.model.eval()
 
-    def run(self):
+    def run(self, uav_position=None):
 
         self.client.simPause(False)
 
@@ -98,6 +98,12 @@ class NetworkTestClient(SimClient):
         # takeoff
         self.client.takeoffAsync().join()
 
+        if uav_position:
+            uav_position[3] = uav_position[3] + 90
+            self.setPositionUAV(uav_position)
+            self.client.moveByVelocityAsync(float(0), float(0), float(0),
+                                                duration=float(3), yaw_mode=airsim.YawMode(False, uav_position[3]))
+
         time.sleep(3)
 
         lastImage = time.time()
@@ -105,6 +111,8 @@ class NetworkTestClient(SimClient):
         timePerImage = 1. / float(self.config.framerate)
 
         cimageindex = 0
+
+        mission_start = now()
 
         while mission:
 
@@ -142,8 +150,8 @@ class NetworkTestClient(SimClient):
                 pausedelta = postpause - prepause
                 if self.config.debug:
                     self.c.addstr(10, 0, f"pausedelta: {pausedelta}")
-                else:
-                    print(f"pausedelta: {pausedelta}")
+                # else:
+                #     print(f"pausedelta: {pausedelta}")
                 tn += pausedelta
                 lastImage = tn
 
@@ -175,6 +183,12 @@ class NetworkTestClient(SimClient):
                 '''
                 self.client.moveByVelocityAsync(float(Wvel[0]), float(Wvel[1]), float(Wvel[2]),
                                                 duration=float(timePerImage), yaw_mode=airsim.YawMode(False, Wyaw))
+                
+                
+                # if now() - mission_start > 50000:
+                #     mission = False
+                #     pd(mission_start, "end of mission after")
+                #     return
 
 
 
@@ -270,8 +284,13 @@ class NetworkTestClient(SimClient):
 if __name__ == "__main__":
     import contextlib
 
+    # for i in range(8):
+    #     track = "track"+str(i)
+    #     print(f"current track: {track}")
+    track = "track6"
+
     with contextlib.closing(NetworkTestClient(
-            "/home/kristoffer/dev/orb_imitation/datagen/eval/runs/X4Gates/ResNet8_ds=X4Gates_Circle_right_l=rgbdo_f=0.25_bs=32_lt=MSE_lr=0.001_c=run0/epoch5.pth",
-            device=config.device, raceTrackName="track0")) as nc:
+            "/home/kristoffer/dev/orb_imitation/datagen/eval/runs/X1Gate_evaluation/ResNet8_ds=X1Gate8tracks_l=do_f=0.25_bs=32_lt=MSE_lr=0.001_c=run0/epoch6.pth",
+            device=config.device, raceTrackName=track)) as nc:
         # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
-        nc.run()
+        nc.run(uav_position=nc.config.uav_position)

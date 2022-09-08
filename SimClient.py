@@ -37,7 +37,7 @@ class SimClient(AirSimInterface):
 
     def __init__(self, raceTrackName="track0", *args, **kwargs):
 
-        # init super class (AirSimController)
+        # init super class (AirSimInterface)
         super().__init__(raceTrackName=raceTrackName, *args, **kwargs)
 
         # do custom setup here
@@ -87,7 +87,7 @@ class SimClient(AirSimInterface):
     B: coordinates in body frame (drone/uav)
     '''
 
-    def gateMission(self, showMarkers=True, captureImages=True, velocity_limit=2):
+    def gateMission(self, showMarkers=True, captureImages=True, velocity_limit=2, uav_position=None):
 
         mission = True
 
@@ -96,6 +96,12 @@ class SimClient(AirSimInterface):
 
         # takeoff
         self.client.takeoffAsync().join()
+
+        if uav_position:
+            uav_position[3] = uav_position[3] + 90
+            self.setPositionUAV(uav_position)
+            self.client.moveByVelocityAsync(float(0), float(0), float(0),
+                                                duration=float(3), yaw_mode=airsim.YawMode(False, uav_position[3]))
 
         # make sure drone is not drifting anymore after takeoff
         time.sleep(3)
@@ -129,7 +135,7 @@ class SimClient(AirSimInterface):
         data = {
             "waypoints": WpathComplete
         }
-        self.saveConfigToDataset(gateConfig, data)
+        self.saveConfigToDataset(self.gateConfigurations[self.currentGateConfiguration], data)
 
         # show trajectory
         if showMarkers:
@@ -281,7 +287,7 @@ class SimClient(AirSimInterface):
                 cwpindex = cwpindex + 1
                 lastWP = tn
             # end mission when no more waypoints available
-            if len(WpathComplete) - 50 <= (cwpindex + 1):   # ignore last 80 waypoints
+            if len(WpathComplete) - 100 <= (cwpindex + 1):   # ignore last 80 waypoints
                 mission = False
         if showMarkers:
             # clear persistent markers
@@ -430,6 +436,16 @@ class SimClient(AirSimInterface):
         return airsim.Vector3r(wp[0], wp[1], wp[2])
 
 
+
+
+    def printGatePositions(self, count):
+
+
+        for i in range(count):
+            pos = self.getPositionGate(i+1)
+            print(f"gate {i}: ")
+            self.printPose(pos)
+
 if __name__ == "__main__":
 
     import contextlib
@@ -448,7 +464,7 @@ if __name__ == "__main__":
             sc.loadNextGatePosition()
 
             # fly mission
-            sc.gateMission(False, True)
+            sc.gateMission(False, True, uav_position=sc.config.uav_position)
 
             sc.loadGatePositions(sc.config.gates['poses'])
             sc.reset()
