@@ -71,7 +71,6 @@ class SimClient(AirSimInterface):
         # close super class (AirSimController)
         super().close()
 
-
     '''
     run mission
     - initialize velocity pid controller
@@ -101,7 +100,7 @@ class SimClient(AirSimInterface):
             uav_position[3] = uav_position[3] + 90
             self.setPositionUAV(uav_position)
             self.client.moveByVelocityAsync(float(0), float(0), float(0),
-                                                duration=float(3), yaw_mode=airsim.YawMode(False, uav_position[3]))
+                                            duration=float(3), yaw_mode=airsim.YawMode(False, uav_position[3]))
 
         # make sure drone is not drifting anymore after takeoff
         time.sleep(3)
@@ -248,11 +247,10 @@ class SimClient(AirSimInterface):
 
                 print(f"magnitude: {magnitude(Bvel)}")
                 Bvel_percent = magnitude(Bvel) / velocity_limit
-                print(f"percent: {Bvel_percent*100}")
+                print(f"percent: {Bvel_percent * 100}")
                 # if magnitude of pid output is greater than velocity limit, scale pid output to velocity limit
                 if Bvel_percent > 1:
                     Bvel = Bvel / Bvel_percent
-
 
                 # rotate velocity command such that it is in world coordinates
                 Wvel = vector_body_to_world(Bvel, [0, 0, 0], Wcstate[3])
@@ -283,11 +281,11 @@ class SimClient(AirSimInterface):
                 self.c.refresh()
 
             # increase current waypoint index if time per waypoint passed and if there are more waypoints available in path
-            if nextWP and len(WpathComplete) > (cwpindex + 1): 
+            if nextWP and len(WpathComplete) > (cwpindex + 1):
                 cwpindex = cwpindex + 1
                 lastWP = tn
             # end mission when no more waypoints available
-            if len(WpathComplete) - 100 <= (cwpindex + 1):   # ignore last 80 waypoints
+            if len(WpathComplete) - 100 <= (cwpindex + 1):  # ignore last 80 waypoints
                 mission = False
         if showMarkers:
             # clear persistent markers
@@ -435,22 +433,17 @@ class SimClient(AirSimInterface):
     def toVector3r(self, wp):
         return airsim.Vector3r(wp[0], wp[1], wp[2])
 
-
-
-
     def printGatePositions(self, count):
 
-
         for i in range(count):
-            pos = self.getPositionGate(i+1)
+            pos = self.getPositionGate(i + 1)
             print(f"gate {i}: ")
             self.printPose(pos)
+
 
 if __name__ == "__main__":
 
     import contextlib
-
-    configurations = []
 
     with contextlib.closing(SimClient(configFilePath='config_cleft.json')) as sc:
         # generate random gate configurations within bounds set in config.json

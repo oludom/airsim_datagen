@@ -212,7 +212,8 @@ class AirSimInterface:
     # capture and save three images, left and right rgb, depth
     # wpidx: index of current waypoint, that is targeted by controller
     # idx: image index, used for naming the images, should count up to prevent overwriting existing images
-    def captureAndSaveImages(self, wpidx, idx=0, body_velocity_yaw=[0., 0., 0., 0.], world_velocity_yaw=[0., 0., 0., 0.]):
+    def captureAndSaveImages(self, wpidx, idx=0, body_velocity_yaw=[0., 0., 0., 0.],
+                             world_velocity_yaw=[0., 0., 0., 0.]):
 
         # current frame name
         cfname = "image" + str(idx)
