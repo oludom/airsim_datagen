@@ -452,13 +452,13 @@ if __name__ == "__main__":
 
     configurations = []
 
-    with contextlib.closing(SimClient()) as sc:
+    with contextlib.closing(SimClient(configFilePath='config_cleft.json')) as sc:
         # generate random gate configurations within bounds set in config.json
         sc.generateGateConfigurations()
         configurations = deepcopy(sc.gateConfigurations)
 
     for i, gateConfig in enumerate(configurations):
-        with contextlib.closing(SimClient(raceTrackName=f"track{i}")) as sc:
+        with contextlib.closing(SimClient(raceTrackName=f"track{i}", configFilePath='config_cleft.json')) as sc:
             sc.gateConfigurations = [gateConfig]
 
             sc.loadNextGatePosition()

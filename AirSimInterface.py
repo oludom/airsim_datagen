@@ -339,10 +339,10 @@ class AirSimInterface:
             # add waypoint
             # waypoints.append(wp2)
             waypoints.append(wpg)
-            waypoints.append(wp1)
+            # waypoints.append(wp1)
 
         # add uavwp again - starting point as endpoint
-        # waypoints.append(uavwp)
+        waypoints.append(uavwp)
 
         if traj:
             # call maveric to get trajectory

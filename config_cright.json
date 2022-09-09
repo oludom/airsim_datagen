@@ -5,7 +5,7 @@
     "pidRate": 30,
     "roundtime": 60,
     "waypoints_per_segment": 100,
-    "gate_basename": "BP_AirLab2m1Gate_",
+    "gate_basename": "BP_AirLab2m1Gate",
     "dataset_basename": "X4Gates_Circle_dagger",
     "dataset_basepath": "/home/kristoffer/dev/dataset",
     "gates": {
@@ -27,7 +27,7 @@
         "grid_size": 3,
         "number_configurations": 5
     },
-    "uav_position": [0.0, -5.0, -1.0, 0.0]
+    "uav_position": [0.0, -5.0, -1.0, -90.0]
 }
 
 
