@@ -31,10 +31,10 @@ from train_newloader import train_main
 parser = argparse.ArgumentParser('Add argument for AirsimClient')
 # parser.add_argument('--weight','-w',type=str,default='')
 # parser.add_argument('--track','-t',type=str,default='track0')
-parser.add_argument('--beta','-b',type=float,default=0.99)
+parser.add_argument('--beta','-b',type=float,default=1)
 parser.add_argument('--project-basepath', '-pb', type=str, default="/media/data2/teamICRA")
 parser.add_argument('--dataset-basepath', '-db', type=str, default="/media/data2/teamICRA/X4Gates_Circles_rl18tracks")
-parser.add_argument('--dataset-basename', '-n', type=str, default="X1Gate_dagger")
+parser.add_argument('--dataset-basename', '-n', type=str, default="X1Gatetest")
 parser.add_argument('--jobs', '-j', type=int, default=4)
 parser.add_argument('--run', '-r', type=str, default='run0')
 parser.add_argument('--frame', '-f', type=str, choices=['body', 'world'],default='world')
@@ -52,8 +52,10 @@ class DaggerClient(AirSimInterface):
     #     self.agent_Steps = 50 - self.expert_steps
 
     
-    def __init__(self, raceTrackName='track0', modelPath=None,  beta=0.99, device='cpu', *args, **kwargs):
+    def __init__(self, mean, std,  raceTrackName='track0', modelPath=None,  beta=0.99, device='cpu', *args, **kwargs):
         super().__init__(raceTrackName, modelPath, *args, **kwargs)
+        self.mean = mean
+        self.std = std
         self.beta = beta
         self.expert_steps = int(50*self.beta)
         self.agent_Steps = 50 - self.expert_steps
@@ -238,9 +240,13 @@ class DaggerClient(AirSimInterface):
                     # image = self.loadWithAirsim()
                     image = transforms.Compose([
                     transforms.ToTensor(),
+                    transforms.Normalize(
+                        self.mean,
+                        self.std)
                     ])(image)
-                    print(f"Image_size = {image.shape}")
+                    
                     try:
+                        print(f"Image_size = {image.shape}")
                         images = torch.unsqueeze(image, dim=0)
                         images = images.to(self.dev)
                         
@@ -270,7 +276,7 @@ class DaggerClient(AirSimInterface):
                 Wvel = vector_body_to_world(Bvel, [0, 0, 0], Wcstate[3])
                 # add pid output for yaw to current yaw position
                 Wyaw = degrees(Wcstate[3]) + Byaw
-
+                print(Wvel)
                 '''
                 Args:
                     vx (float): desired velocity in world (NED) X axis
@@ -290,7 +296,7 @@ class DaggerClient(AirSimInterface):
             if self.config.debug:
                 self.c.refresh()
            
-            if cwpindex == 150:
+            if cwpindex == 20:
                 mission = False
                 break
             if nextWP and len(WpathComplete) > (cwpindex + 1):
@@ -411,9 +417,15 @@ if __name__ == "__main__":
     path_init_weight = ""
     loss_type = "MSE"
     configurations = []
-
-    beta = 0.99
-    with contextlib.closing(DaggerClient()) as dc:
+    mean = torch.zeros([3,])
+    std = torch.zeros([3,])
+    beta = 1
+    beta_rate = 0.1
+    change_per_round_rate = 0.65
+    def schedular_rate(round):
+        return beta_rate /((round +1) * change_per_round_rate)
+        
+    with contextlib.closing(DaggerClient(mean, std)) as dc:
         # generate random gate configurations within bounds set in config.json
         dc.generateGateConfigurations()
         configurations = deepcopy(dc.gateConfigurations)
@@ -424,9 +436,11 @@ if __name__ == "__main__":
         if i == 0:
             model_weight_path = "/media/data2/teamICRA/runs/Micha_weight/epoch11.pth"
         else:
-            model_weight_path = f'/media/data2/teamICRA/run_dagger/DAgger_ResNet32_ScaleV_body={batch_size}_lt={loss_type}_lr={learning_rate}_run{i-1}/best.pth'
+            model_weight_path = f'/media/data2/teamICRA/run_test/DAgger_ResNet32_ScaleV_body={batch_size}_lt={loss_type}_lr={learning_rate}_run{i-1}/best.pth'
 
         with contextlib.closing(DaggerClient(
+                mean,
+                std,
                 track_name,
                 model_weight_path,
                 beta,
@@ -439,6 +453,7 @@ if __name__ == "__main__":
             # dc.reset()
         print('ENDROUND')
         arg.pretrained = model_weight_path
-        train_main(arg, run)
-        beta -= 0.01
+        mean, std = train_main(arg, run)
+        change_rate = schedular_rate(i)
+        beta -= change_rate
         
