@@ -73,7 +73,7 @@ class DaggerClient(SimClient):
             self.setPositionUAV(uav_position)
             self.client.moveByVelocityAsync(float(0), float(0), float(0),
                                             duration=float(3), yaw_mode=airsim.YawMode(False, uav_position[3]))
-
+            print('init')
         time.sleep(3)
 
         # init pid controller for velocity control
@@ -184,7 +184,13 @@ class DaggerClient(SimClient):
                 ctrl.update(tn - lastPID)
                 # get current pid output´
                 Bvel, Byaw = ctrl.getVelocityYaw()
-
+                init_yaw = degrees(Wcstate[3]) + Byaw
+                if cwpindex <= 1:
+                    print(cwpindex)
+                    self.client.moveByVelocityAsync(float(0), float(0), float(0),
+                                            duration=float(3), yaw_mode=airsim.YawMode(False, init_yaw))
+                print(cwpindex)
+                
                 # pause simulation
                 prepause = time.time()
                 self.client.simPause(True)
@@ -200,7 +206,7 @@ class DaggerClient(SimClient):
                 if action == "agent":
                     images = torch.unsqueeze(sample, dim=0)
                     images = images.to(self.dev)
-
+                    
                     # predict vector with network
                     s = now()
                     pred = self.model(images)
@@ -210,7 +216,7 @@ class DaggerClient(SimClient):
                     pred = pred[0]  # remove batch
 
                     Bvel, Byaw = pred[:3], pred[3]
-
+                    Byaw = degrees(Byaw)
                 # limit magnitude to max velocity
                 Bvel_percent = magnitude(Bvel) / velocity_limit
                 # print(f"percent: {Bvel_percent*100}")
@@ -231,10 +237,9 @@ class DaggerClient(SimClient):
 
                 # rotate velocity command such that it is in world coordinates
                 Wvel = vector_body_to_world(Bvel, [0, 0, 0], Wcstate[3])
-
+                print(Byaw)
                 # add pid output for yaw to current yaw position
                 Wyaw = degrees(Wcstate[3]) + Byaw
-
                 WLastAirSimVel = [*Wvel, Wyaw]
 
                 '''
