@@ -5,9 +5,9 @@
     "pidRate": 30,
     "roundtime": 60,
     "waypoints_per_segment": 100,
-    "gate_basename": "BP_AirLab2m1Gate",
-    "dataset_basename": "X4Gates_Circle_dagger",
-    "dataset_basepath": "/home/kristoffer/dev/dataset",
+    "gate_basename": "BP_AirLab2m1Gate_",
+    "dataset_basename": "X1Gate_dagger_rgbdo",
+    "dataset_basepath": "/media/data2/teamICRA/X4Gates_Circles_rl18tracks",
     "gates": {
         "poses": [
             [-2.5, -3.5, -1.0, 45.0],
@@ -25,7 +25,7 @@
             "yaw": [0, 0]
         },
         "grid_size": 3,
-        "number_configurations": 5
+        "number_configurations": 15
     },
     "uav_position": [0.0, -5.0, -1.0, 90.0]
 }
