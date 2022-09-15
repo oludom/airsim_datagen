@@ -57,6 +57,18 @@
           ],
           "X": 0.20, "Y": 0, "Z": 0.0,
           "Pitch": 0, "Roll": 0, "Yaw": 0
+        },
+        "seg": {
+          "CaptureSettings": [
+            {
+              "ImageType": 5,
+              "Width": 256,
+              "Height": 144,
+              "FOV_Degrees": 90
+            }
+          ],
+          "X": 0.20, "Y": -0.06, "Z": 0.0,
+          "Pitch": 0.0, "Roll": 0.0, "Yaw": 0.0
         }
       },
       "Sensors": {
@@ -87,6 +99,12 @@
       "WindowID": 2,
       "ImageType": 1,
       "CameraName": "depth_cam",
+      "Visible": true
+    },
+    {
+      "WindowID": 1,
+      "ImageType": 5,
+      "CameraName": "seg",
       "Visible": true
     }
   ]

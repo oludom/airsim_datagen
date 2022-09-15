@@ -88,6 +88,16 @@ class AirSimInterface:
         # imu cache for faster data collection
         self.imuCache = []
 
+        self.backgroundIndex = 0
+        self.backgroundMaxIndex = 29
+
+        # segmentation image setup
+        # find color mapping here: https://microsoft.github.io/AirSim/seg_rgbs.txt
+        self.client.simSetSegmentationObjectID('[\w]*', 0, True)
+        self.client.simSetSegmentationObjectID('BP_AirLab2m1Gate[\w]*', 232, True) # 232 = [4, 122, 235]
+
+
+
     # save config file to data set folder
     # gates: np.array of shape [x, y, z, yaw]
     # data: dict - key value
@@ -228,12 +238,14 @@ class AirSimInterface:
                 [
                     airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
                     # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
-                    airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
+                    airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True),
+                    airsim.ImageRequest("seg", airsim.ImageType.Segmentation, False, False)
                 ]
             )
             left = res[0]
             # right = res[1]
             depth = res[1]
+            segres = res[2]
 
             # save left image
             # airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)
@@ -242,6 +254,12 @@ class AirSimInterface:
 
             # check if image contains data, repeat request if empty
             if img_rgb.size:
+                # if not enough gate pixels in camera viwer, skip frame
+                if not self.checkGateInView(segres):
+                    self.imuCache = []
+                    print("not enough of gate visible. Skipping frame. ")
+                    return img_rgb, depth
+                # else keep frame
                 break  # end of do while loop
             else:
                 loopcount += 1
@@ -343,7 +361,7 @@ class AirSimInterface:
             # waypoints.append(wp1)
 
         # add uavwp again - starting point as endpoint
-        waypoints.append(uavwp)
+        # waypoints.append(uavwp)
 
         if traj:
             # call maveric to get trajectory
@@ -407,6 +425,37 @@ class AirSimInterface:
         if not os.path.isdir(folder):
             # print(f"created folder '{folder}'")
             os.mkdir(folder)
+
+
+    def changeBackground(self):
+
+        index = self.backgroundIndex + 1
+        if index <= self.backgroundMaxIndex:
+            self.backgroundIndex += 1
+        else:
+            self.backgroundIndex = 0
+    
+        self.client.simSwapTextures("wall", self.backgroundIndex)
+
+    def changeBackgroundTest(self):
+    
+        self.client.simSwapTextures("wall", 30)
+
+    def checkGateInView(self, segres):
+        # responses = client.simGetImages([ImageRequest(0, AirSimImageType.Segmentation, False, False)])
+        img1d = np.fromstring(segres.image_data_uint8, dtype=np.uint8) #get numpy array
+        img_rgb = img1d.reshape(segres.height, segres.width, 3) #reshape array to 3 channel image array H X W X 3
+        img_rgb = np.flipud(img_rgb) #original image is fliped vertically
+
+        #find unique colors
+        # print("-------------------")
+        # print(float(np.sum(img_rgb[:,:,2]))/4.) #red
+
+        # gate pixel count in image: 
+        numpx = float(np.sum(img_rgb[:,:,2]))/4.
+        
+        return numpx > 100.
+
 
     # reset simulation environment
     def reset(self):
