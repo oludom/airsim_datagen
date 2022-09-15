@@ -5,7 +5,7 @@ from glob import glob
 # track5, linking to ds1/track0, ds1/track1, ds2/track0, ds2/track1, ds3/track0, ds3/track1 respectively
 
 # fpöder to folders containing datasets (track0, track1, ...)
-path_datasets = "/data/datasets/X1Gate8tracks"
+path_datasets = "/data/datasets/pid_testing"
 # folder to link tracks to
 path_linked = path_datasets + "/linked"
 print(f"mkdir {path_linked}")
@@ -21,6 +21,8 @@ for dataset in datasets:
     for track in tracks:
         # print(track)
         # link track to linked dataset
-        lp = path_linked + "/track" + str(track_count)
+        s = track.split("/")
+        # print(s[-3])
+        lp = path_linked + "/" + s[-3] # "/track" + str(track_count)
         track_count += 1
         print(f"ln -s {track} {lp}")

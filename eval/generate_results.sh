@@ -7,9 +7,9 @@
 
 
 # dataset folder
-DATASETS=/media/micha/eSSD/datasets
-DFOLDER=/X4Gates_Circle_speedtest30s
-DATASETS=/home/micha/dev/datasets/droneracing
+#DATASETS=/media/micha/eSSD/datasets
+DFOLDER=/pid_evaluation
+DATASETS=/data/datasets/pid_testing
 #DFOLDER=/X4Gates_Circle_1
 #DATASETS=/data/datasets
 #DFOLDER=/X4Gates_Circle_2
@@ -25,8 +25,8 @@ for d in "$DATASET"/*/ ; do
 
   TRACKNAME=$(basename $d)
 
-  evo_ape tum "$d"groundtruth_trajectory_"$TRACKNAME".tum "$d"actual_trajectory_"$TRACKNAME".tum --save_results "$RESULTS"/"$TRACKNAME".zip
+  echo evo_ape tum "$d"groundtruth_trajectory_"$TRACKNAME".tum "$d"actual_trajectory_"$TRACKNAME".tum --save_results "$RESULTS"/"$TRACKNAME".zip
 done
 
 # compare and save results
-evo_res $RESULTS/*.zip -p --save_table "$RESULTS"/table.csv
+echo evo_res $RESULTS/*.zip -p --save_table "$RESULTS"/table.csv
