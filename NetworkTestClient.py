@@ -46,10 +46,10 @@ pd = lambda s, t: print(f"{t}: {now() - s}ms")
 
 class NetworkTestClient(SimClient):
 
-    def __init__(self, modelPath, raceTrackName="track0", device='cpu'):
+    def __init__(self, modelPath, raceTrackName="track0", device='cpu', *args, **kwargs):
 
         # init super class (AirSimController)
-        super().__init__(raceTrackName=raceTrackName, createDataset=False)
+        super().__init__(raceTrackName=raceTrackName, createDataset=False, *args, **kwargs)
 
         # do custom setup here
 
@@ -62,6 +62,8 @@ class NetworkTestClient(SimClient):
         # dataset_basename = "X4Gates_Circle_right_"
         dataset_basename = self.DATASET_NAME
         # dataset_basename = "X4Gates_Circle_2"
+
+        self.trajectoryFile = f'{dataset_basepath}/{dataset_basename}/{raceTrackName}/trajectory_{config.itypes}.tum'
 
 
         # relead config file from dataset
@@ -106,6 +108,9 @@ class NetworkTestClient(SimClient):
 
         time.sleep(3)
 
+        # set backgorund texture
+        self.changeBackgroundTest()
+
         lastImage = time.time()
 
         timePerImage = 1. / float(self.config.framerate)
@@ -114,81 +119,103 @@ class NetworkTestClient(SimClient):
 
         mission_start = now()
 
-        while mission:
+        # trajectory file
+        with open(self.trajectoryFile, 'w') as traj:
 
-            # get current time and time delta
-            tn = time.time()
+            while mission:
 
-            nextImage = tn - lastImage > timePerImage
+                # get current time and time delta
+                tn = time.time()
 
-            if nextImage:
-                # pause simulation
-                prepause = time.time()
-                self.client.simPause(True)
+                nextImage = tn - lastImage > timePerImage
+
+                if nextImage:
+                    # pause simulation
+                    prepause = time.time()
+                    self.client.simPause(True)
 
 
-                # get images from AirSim API
+                    # get images from AirSim API
 
-                image = self.loadWithAirsim(config.input_channels['depth'])
+                    image, segres = self.loadWithAirsim(config.input_channels['depth'])
 
-                images = torch.unsqueeze(image, dim=0)
-                images = images.to(self.dev)
+                    if not self.checkGateInView(segres):
+                        mission = False 
+                        pd(mission_start, "gates out of view after")
+                        return
 
-                # predict vector with network
-                s = now()
-                pred = self.model(images)
-                # pd(s, "inference")
-                pred = pred.to(torch.device('cpu'))
-                pred = pred.detach().numpy()
-                pred = pred[0]  # remove batch
+                    images = torch.unsqueeze(image, dim=0)
+                    images = images.to(self.dev)
 
-                cimageindex += 1
+                    # predict vector with network
+                    s = now()
+                    pred = self.model(images)
+                    # pd(s, "inference")
+                    pred = pred.to(torch.device('cpu'))
+                    pred = pred.detach().numpy()
+                    pred = pred[0]  # remove batch
 
-                # unpause simulation
-                self.client.simPause(False)
-                postpause = time.time()
-                pausedelta = postpause - prepause
-                if self.config.debug:
-                    self.c.addstr(10, 0, f"pausedelta: {pausedelta}")
-                # else:
-                #     print(f"pausedelta: {pausedelta}")
-                tn += pausedelta
-                lastImage = tn
+                    cimageindex += 1
 
-                # send control command to airsim
-                cstate = self.getState()
+                    # unpause simulation
+                    self.client.simPause(False)
+                    postpause = time.time()
+                    pausedelta = postpause - prepause
+                    if self.config.debug:
+                        self.c.addstr(10, 0, f"pausedelta: {pausedelta}")
+                    # else:
+                    #     print(f"pausedelta: {pausedelta}")
+                    tn += pausedelta
+                    lastImage = tn
+                    mission_start += pausedelta
 
-                # rotate velocity command such that it is in world coordinates
-                Wvel = vector_body_to_world(pred[:3]*2, [0, 0, 0], cstate[3])
+                    Bvel = pred[:3]
 
-                # add pid output for yaw to current yaw position
-                Wyaw = degrees(cstate[3]) + degrees(pred[3])
+                    # print(f"magnitude: {magnitude(Bvel)}")
+                    Bvel_percent = magnitude(Bvel) / 2
+                    # print(f"percent: {Bvel_percent*100}")
+                    # if magnitude of pid output is greater than velocity limit, scale pid output to velocity limit
+                    # if Bvel_percent > 1:
+                    Bvel = Bvel / Bvel_percent
+                    Byaw = pred[3] / Bvel_percent
 
-                # visualizes prediction 
-                # self.client.simPlotPoints([self.getPositionAirsimUAV().position], color_rgba=[1.0, 0.0, 1.0, 1.0],
-                #                       size=10.0, duration=self.timestep, is_persistent=False)
-                # Wposvel = cstate[:3] + Wvel
-                # self.client.simPlotPoints([airsim.Vector3r(Wposvel[0], Wposvel[1], Wposvel[2])], color_rgba=[.8, 0.5, 1.0, 1.0],
-                #                       size=10.0, duration=self.timestep, is_persistent=False)
+                    # print(f"y: {degrees(Byaw)}")
 
-                '''
-                Args:
-                    vx (float): desired velocity in world (NED) X axis
-                    vy (float): desired velocity in world (NED) Y axis
-                    vz (float): desired velocity in world (NED) Z axis
-                    duration (float): Desired amount of time (seconds), to send this command for
-                    drivetrain (DrivetrainType, optional):
-                    yaw_mode (YawMode, optional):
-                    vehicle_name (str, optional): Name of the multirotor to send this command to
-                '''
-                self.client.moveByVelocityAsync(float(Wvel[0]), float(Wvel[1]), float(Wvel[2]),
-                                                duration=float(timePerImage), yaw_mode=airsim.YawMode(False, Wyaw))
+                    ypercent = abs(degrees(Byaw) / 10)
+                    # print(f"ypercent: {ypercent}")
+                    if ypercent > 1:
+                        # print("limiting yaw") 
+                        Bvel = Bvel / ypercent
+                        Byaw = Byaw / ypercent
+
+                    # send control command to airsim
+                    cstate = self.getState()
+
+                    # rotate velocity command such that it is in world coordinates
+                    Wvel = vector_body_to_world(Bvel, [0, 0, 0], cstate[3])
+
+                    # add pid output for yaw to current yaw position
+                    Wyaw = degrees(cstate[3]) + degrees(Byaw)
+
+                    # save current pose
+                    pose = self.getPositionUAV()
+                    traj.write(" ".join([str(el) for el in [tn, *pose]]) + "\n")
+
+
+                    '''
+                    Args:
+                        vx (float): desired velocity in world (NED) X axis
+                        vy (float): desired velocity in world (NED) Y axis
+                        vz (float): desired velocity in world (NED) Z axis
+                        duration (float): Desired amount of time (seconds), to send this command for
+                        drivetrain (DrivetrainType, optional):
+                        yaw_mode (YawMode, optional):
+                        vehicle_name (str, optional): Name of the multirotor to send this command to
+                    '''
+                    self.client.moveByVelocityAsync(float(Wvel[0]), float(Wvel[1]), float(Wvel[2]),
+                                                    duration=float(timePerImage), yaw_mode=airsim.YawMode(False, Wyaw))
+                    
                 
-                
-                # if now() - mission_start > 50000:
-                #     mission = False
-                #     pd(mission_start, "end of mission after")
-                #     return
 
 
 
@@ -201,6 +228,7 @@ class NetworkTestClient(SimClient):
         # 'and True' emulates a do while loop
         loopcount = 0
         sample = None
+        segres = None
         while (True):
             if withDepth:
 
@@ -209,15 +237,19 @@ class NetworkTestClient(SimClient):
                     [
                         airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
                         # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
-                        airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
+                        airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True),
+                        airsim.ImageRequest("seg", airsim.ImageType.Segmentation, False, False)
                     ]
                 )
+                segres = res[2]
             else:
                 res = self.client.simGetImages(
                     [
-                        airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False)
+                        airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
+                        airsim.ImageRequest("seg", airsim.ImageType.Segmentation, False, False)
                     ]
                 )
+                segres = res[1]
             left = res[0]
             # pd(start, f"lc{loopcount}")
 
@@ -278,19 +310,18 @@ class NetworkTestClient(SimClient):
             else:
                 sample = orbmask
 
-        return sample
+        return sample, segres
 
 
 if __name__ == "__main__":
     import contextlib
 
-    # for i in range(8):
-    #     track = "track"+str(i)
-    #     print(f"current track: {track}")
-    track = "track6"
+    for i in range(10):
+        track = "track"+str(i)
+        print(f"current track: {track}")
 
-    with contextlib.closing(NetworkTestClient(
-            "/home/kristoffer/dev/orb_imitation/datagen/eval/runs/X1Gate_evaluation/ResNet8_ds=X1Gate8tracks_l=do_f=0.25_bs=32_lt=MSE_lr=0.001_c=run0/epoch6.pth",
-            device=config.device, raceTrackName=track)) as nc:
-        # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
-        nc.run(uav_position=nc.config.uav_position)
+        with contextlib.closing(NetworkTestClient(
+                f"/home/kristoffer/dev/orb_imitation/datagen/eval/runs/domain_randomization/ResNet8_ds=dr_pretrain_l={config.itypes}_f=0.5_bs=32_lt=MSE_lr=0.001_c=run0/epoch7.pth",
+                device=config.device, raceTrackName=track, configFilePath='config_dr_test.json')) as nc:
+            # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
+            nc.run(uav_position=nc.config.uav_position)

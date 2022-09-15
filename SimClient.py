@@ -146,6 +146,7 @@ class SimClient(AirSimInterface):
         lastImage = time.time()
         lastIMU = time.time()
         lastPID = time.time()
+        lastBG = time.time()
 
         WLastAirSimVel = [0., 0., 0., 0.]
 
@@ -153,6 +154,7 @@ class SimClient(AirSimInterface):
         timePerImage = 1. / float(self.config.framerate)
         timePerIMU = 1. / float(self.config.imuRate)
         timePerPID = 1. / float(self.config.pidRate)
+        timePerBG = 1. / float(self.config.backgroundChangeRate)
 
         cwpindex = 0
         cimageindex = 0
@@ -181,6 +183,9 @@ class SimClient(AirSimInterface):
             nextImage = tn - lastImage > timePerImage
             nextIMU = tn - lastIMU > timePerIMU
             nextPID = tn - lastPID > timePerPID
+            nextBG = tn - lastBG > timePerBG
+
+
 
             if showMarkers:
                 current_drone_pose = self.getPositionUAV()
@@ -203,6 +208,10 @@ class SimClient(AirSimInterface):
                     self.c.addstr(5, 0, f"imu: {format(1. / float(tn - lastIMU), '.4f')}hz")
                 if nextPID:
                     self.c.addstr(6, 0, f"pid: {format(1. / float(tn - lastPID), '.4f')}hz")
+
+            if nextBG:
+                self.changeBackground()
+                lastBG = tn
 
             if nextIMU:
                 self.captureIMU()
@@ -287,7 +296,7 @@ class SimClient(AirSimInterface):
                 cwpindex = cwpindex + 1
                 lastWP = tn
             # end mission when no more waypoints available
-            if len(WpathComplete) - 100 <= (cwpindex + 1):   # ignore last 80 waypoints
+            if len(WpathComplete) - 10 <= (cwpindex + 1):   # ignore last 80 waypoints
                 mission = False
         if showMarkers:
             # clear persistent markers
@@ -452,13 +461,13 @@ if __name__ == "__main__":
 
     configurations = []
 
-    with contextlib.closing(SimClient(configFilePath='config_cleft.json')) as sc:
+    with contextlib.closing(SimClient(configFilePath='config_dr_test.json')) as sc:
         # generate random gate configurations within bounds set in config.json
         sc.generateGateConfigurations()
         configurations = deepcopy(sc.gateConfigurations)
 
     for i, gateConfig in enumerate(configurations):
-        with contextlib.closing(SimClient(raceTrackName=f"track{i}", configFilePath='config_cleft.json')) as sc:
+        with contextlib.closing(SimClient(raceTrackName=f"track{i}", configFilePath='config_dr_test.json')) as sc:
             sc.gateConfigurations = [gateConfig]
 
             sc.loadNextGatePosition()

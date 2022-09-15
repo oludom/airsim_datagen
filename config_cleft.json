@@ -3,10 +3,11 @@
     "framerate": 30,
     "imuRate": 400,
     "pidRate": 30,
+    "backgroundChangeRate": 1,
     "roundtime": 60,
     "waypoints_per_segment": 100,
     "gate_basename": "BP_AirLab2m1Gate",
-    "dataset_basename": "X4Gates_Circle_dagger",
+    "dataset_basename": "domain_randomization",
     "dataset_basepath": "/home/kristoffer/dev/dataset",
     "gates": {
         "poses": [
