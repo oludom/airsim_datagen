@@ -151,6 +151,7 @@ class DaggerClient(SimClient):
         lastImage = time.time()
         lastIMU = time.time()
         lastPID = time.time()
+        lastBG = time.time()
 
         WLastAirSimVel = [0., 0., 0., 0.]
 
@@ -158,6 +159,7 @@ class DaggerClient(SimClient):
         timePerImage = 1. / float(self.config.framerate)
         timePerIMU = 1. / float(self.config.imuRate)
         timePerPID = 1. / float(self.config.pidRate)
+        timePerBG = 1. / float(self.config.backgroundChangeRate)
 
         cwpindex = 0
         cimageindex = 0
@@ -187,6 +189,7 @@ class DaggerClient(SimClient):
             nextImage = tn - lastImage > timePerImage
             nextIMU = tn - lastIMU > timePerIMU
             nextPID = tn - lastPID > timePerPID
+            nextBG = tn - lastBG > timePerBG
 
             if showMarkers:
                 current_drone_pose = self.getPositionUAV()
@@ -210,24 +213,28 @@ class DaggerClient(SimClient):
                 if nextPID:
                     self.c.addstr(6, 0, f"pid: {format(1. / float(tn - lastPID), '.4f')}hz")
 
+            if nextBG:
+                self.changeBackground()
+                lastBG = tn
+
             if nextIMU:
                 self.captureIMU()
                 lastIMU = tn
 
             if nextPID:
                 # get current state
-                Wcstate = self.getState()
+                Wcstate = self.getState()  # rad
 
                 # set goal state of pid controller
-                Bgoal = vector_world_to_body(wp[:3], Wcstate[:3], Wcstate[3])
+                Bgoal = vector_world_to_body(wp[:3], Wcstate[:3], Wcstate[3])  # rad
                 # desired yaw angle is target point yaw angle world minus current uav yaw angle world 
-                ByawGoal = angleDifference(wp[3], degrees(Wcstate[3]))
+                ByawGoal = angleDifference(wp[3], degrees(Wcstate[3]))  # deg
                 # print(f"angle target: {ByawGoal:5.4f}")
                 ctrl.setGoal([*Bgoal, ByawGoal])
                 # update pid controller
                 ctrl.update(tn - lastPID)
                 # get current pid output´
-                Bvel, Byaw = ctrl.getVelocityYaw()
+                Bvel, Byaw = ctrl.getVelocityYaw()  # deg
 
                 # pause simulation
                 prepause = time.time()
@@ -254,7 +261,8 @@ class DaggerClient(SimClient):
                     pred = pred.detach().numpy()
                     pred = pred[0]  # remove batch
 
-                    Bvel, Byaw = pred[:3], pred[3]
+                    Bvel, Byaw = pred[:3], pred[3]  # rad
+                    Byaw = degrees(Byaw)
                     # Bvel = torch.tensor(Bvel)
                     # Bvel = Bvel * bvel_max
                     # Bvel = Bvel.numpy()
