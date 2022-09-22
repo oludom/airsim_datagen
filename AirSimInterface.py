@@ -34,14 +34,14 @@ import MAVeric.trajectory_planner as maveric
 
 class AirSimInterface:
 
-    def __init__(self, raceTrackName, createDataset=True):
+    def __init__(self, raceTrackName, createDataset=True, configFilePath='config.json'):
 
         ''' 
         INIT VALUES 
         '''
 
         # configuration file
-        self.configFile = open('config.json', "r")
+        self.configFile = open(configFilePath, "r")
 
         self.config = {}
         self.loadConfig(self.configFile)
@@ -88,6 +88,16 @@ class AirSimInterface:
         # imu cache for faster data collection
         self.imuCache = []
 
+        self.backgroundIndex = 0
+        self.backgroundMaxIndex = 29
+
+        # segmentation image setup
+        # find color mapping here: https://microsoft.github.io/AirSim/seg_rgbs.txt
+        self.client.simSetSegmentationObjectID('[\w]*', 0, True)
+        self.client.simSetSegmentationObjectID('BP_AirLab2m1Gate[\w]*', 232, True) # 232 = [4, 122, 235]
+
+
+
     # save config file to data set folder
     # gates: np.array of shape [x, y, z, yaw]
     # data: dict - key value
@@ -96,7 +106,10 @@ class AirSimInterface:
             dconfigfile = open(self.DATASET_PATH + "/config.json", "w")
             self.configFile.seek(0)
             dconfig = json.load(self.configFile)
-            dconfig['gates']['poses'] = gates.tolist()
+            if isinstance(gates, list):
+                dconfig['gates']['poses'] = gates
+            else:
+                dconfig['gates']['poses'] = gates.tolist()
             dconfig['gates']['number_configurations'] = 1
 
             for key, value in data.items():
@@ -173,10 +186,16 @@ class AirSimInterface:
         if yaw == None:  # assume pos[3] is yaw
             yaw = pos[3]
         pose = airsim.Pose(airsim.Vector3r(pos[0], pos[1], pos[2]), airsim.to_quaternion(0, 0, radians(yaw)))
-        if idx < 1 or idx > 4:
+        if idx < 1:
             print("setPositionGate: error gate idx not found.")
             return
         self.client.simSetObjectPose(self.config.gate_basename + str(idx), pose, True)
+
+    def setPositionUAV(self, pos, yaw=None):
+        if yaw == None:  # assume pos[3] is yaw
+            yaw = pos[3]
+        pose = airsim.Pose(airsim.Vector3r(pos[0], pos[1], pos[2]), airsim.to_quaternion(0, 0, radians(yaw)))
+        self.client.simSetVehiclePose(pose, True)
 
     # ImuData: type ImuData (airsim sensor message)
     # returns time stamp, dict of ImuData
@@ -203,7 +222,8 @@ class AirSimInterface:
     # capture and save three images, left and right rgb, depth
     # wpidx: index of current waypoint, that is targeted by controller
     # idx: image index, used for naming the images, should count up to prevent overwriting existing images
-    def captureAndSaveImages(self, wpidx, idx=0, body_velocity_yaw=[0., 0., 0., 0.]):
+    def captureAndSaveImages(self, wpidx, idx=0, body_velocity_yaw=[0., 0., 0., 0.],
+                             world_velocity_yaw=[0., 0., 0., 0.]):
 
         # current frame name
         cfname = "image" + str(idx)
@@ -218,12 +238,14 @@ class AirSimInterface:
                 [
                     airsim.ImageRequest("front_left", airsim.ImageType.Scene, False, False),
                     # airsim.ImageRequest("front_right", airsim.ImageType.Scene),
-                    airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True)
+                    airsim.ImageRequest("depth_cam", airsim.ImageType.DepthPlanar, True),
+                    airsim.ImageRequest("seg", airsim.ImageType.Segmentation, False, False)
                 ]
             )
             left = res[0]
             # right = res[1]
             depth = res[1]
+            segres = res[2]
 
             # save left image
             # airsim.write_file(self.DATASET_PATH_LEFT + f"/{cfname}.png", left.image_data_uint8)
@@ -232,6 +254,12 @@ class AirSimInterface:
 
             # check if image contains data, repeat request if empty
             if img_rgb.size:
+                # if not enough gate pixels in camera viwer, skip frame
+                if not self.checkGateInView(segres):
+                    self.imuCache = []
+                    print("not enough of gate visible. Skipping frame. ")
+                    return img_rgb, depth
+                # else keep frame
                 break  # end of do while loop
             else:
                 loopcount += 1
@@ -255,6 +283,8 @@ class AirSimInterface:
         # make sure the values are json serializable (e.g. numpy int64 is not)
         body_velocity_yaw = [float(el) for el in body_velocity_yaw]
         body_velocity_yaw[3] = radians(body_velocity_yaw[3])
+        world_velocity_yaw = [float(el) for el in world_velocity_yaw]
+        world_velocity_yaw[3] = radians(world_velocity_yaw[3])
 
         # write entry to output file
         entry = {
@@ -263,10 +293,13 @@ class AirSimInterface:
             "waypoint_index": wpidx,
             "pose": pos,
             "body_velocity_yaw_pid": body_velocity_yaw,
+            "world_velocity_yaw_pid": world_velocity_yaw,
             "imu": imu
         }
         if self.createDataset:
             print(f"{json.dumps(entry, indent=1)},", file=self.outputFile)
+
+            return img_rgb, depth
 
     def captureIMU(self):
         # get imu data
@@ -310,7 +343,7 @@ class AirSimInterface:
         waypoints.append(uavwp)
 
         # get current gate positions
-        for i in range(1, 5):
+        for i in range(1, len(self.config.gates['poses']) + 1):
             # get gate position
             gp = self.getPositionGate(i)
             # self.printPose(gp)
@@ -318,7 +351,7 @@ class AirSimInterface:
             # convert to xyz and yaw
             _, _, yaw = airsim.to_eularian_angles(orientation)
 
-            wp1, wp2 = self.create2WaypointsOffset(gp[:3], -yaw, 1)
+            wp1, wp2 = self.create2WaypointsOffset(gp[:3], -yaw, 2)
             wp1 = [wp1[0], wp1[1], wp1[2], degrees(-yaw)]
             wpg = [gp[0], gp[1], gp[2], degrees(-yaw)]
             wp2 = [wp2[0], wp2[1], wp2[2], degrees(-yaw)]
@@ -328,7 +361,7 @@ class AirSimInterface:
             # waypoints.append(wp1)
 
         # add uavwp again - starting point as endpoint
-        waypoints.append(uavwp)
+        # waypoints.append(uavwp)
 
         if traj:
             # call maveric to get trajectory
@@ -392,6 +425,37 @@ class AirSimInterface:
         if not os.path.isdir(folder):
             # print(f"created folder '{folder}'")
             os.mkdir(folder)
+
+
+    def changeBackground(self):
+
+        index = self.backgroundIndex + 1
+        if index <= self.backgroundMaxIndex:
+            self.backgroundIndex += 1
+        else:
+            self.backgroundIndex = 0
+    
+        self.client.simSwapTextures("wall", self.backgroundIndex)
+
+    def changeBackgroundTest(self):
+    
+        self.client.simSwapTextures("wall", 30)
+
+    def checkGateInView(self, segres):
+        # responses = client.simGetImages([ImageRequest(0, AirSimImageType.Segmentation, False, False)])
+        img1d = np.fromstring(segres.image_data_uint8, dtype=np.uint8) #get numpy array
+        img_rgb = img1d.reshape(segres.height, segres.width, 3) #reshape array to 3 channel image array H X W X 3
+        img_rgb = np.flipud(img_rgb) #original image is fliped vertically
+
+        #find unique colors
+        # print("-------------------")
+        # print(float(np.sum(img_rgb[:,:,2]))/4.) #red
+
+        # gate pixel count in image: 
+        numpx = float(np.sum(img_rgb[:,:,2]))/4.
+        
+        return numpx > 100.
+
 
     # reset simulation environment
     def reset(self):

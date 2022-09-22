@@ -37,7 +37,7 @@ class SimClient(AirSimInterface):
 
     def __init__(self, raceTrackName="track0", *args, **kwargs):
 
-        # init super class (AirSimController)
+        # init super class (AirSimInterface)
         super().__init__(raceTrackName=raceTrackName, *args, **kwargs)
 
         # do custom setup here
@@ -79,13 +79,14 @@ class SimClient(AirSimInterface):
     - follow trajectory with sampled waypoints
     showMarkers: boolean, if true, trajectory will be visualized with red markers in simulation
     captureImages: boolean, if true, each iteration will capture a frame of each camera, simulation is paused for this
+    velocity_limit: float, maximum velocity of the vehicle
 
     variable name prefix:
     W: coordinates in world frame
     B: coordinates in body frame (drone/uav)
     '''
 
-    def gateMission(self, showMarkers=True, captureImages=True):
+    def gateMission(self, showMarkers=True, captureImages=True, velocity_limit=2, uav_position=None):
 
         mission = True
 
@@ -94,6 +95,12 @@ class SimClient(AirSimInterface):
 
         # takeoff
         self.client.takeoffAsync().join()
+
+        if uav_position:
+            uav_position[3] = uav_position[3] + 90
+            self.setPositionUAV(uav_position)
+            self.client.moveByVelocityAsync(float(0), float(0), float(0),
+                                            duration=float(3), yaw_mode=airsim.YawMode(False, uav_position[3]))
 
         # make sure drone is not drifting anymore after takeoff
         time.sleep(3)
@@ -127,7 +134,7 @@ class SimClient(AirSimInterface):
         data = {
             "waypoints": WpathComplete
         }
-        self.saveConfigToDataset(gateConfig, data)
+        self.saveConfigToDataset(self.gateConfigurations[self.currentGateConfiguration], data)
 
         # show trajectory
         if showMarkers:
@@ -138,11 +145,15 @@ class SimClient(AirSimInterface):
         lastImage = time.time()
         lastIMU = time.time()
         lastPID = time.time()
+        lastBG = time.time()
+
+        WLastAirSimVel = [0., 0., 0., 0.]
 
         timePerWP = float(self.config.roundtime) / len(WpathComplete)
         timePerImage = 1. / float(self.config.framerate)
         timePerIMU = 1. / float(self.config.imuRate)
         timePerPID = 1. / float(self.config.pidRate)
+        timePerBG = 1. / float(self.config.backgroundChangeRate)
 
         cwpindex = 0
         cimageindex = 0
@@ -171,6 +182,9 @@ class SimClient(AirSimInterface):
             nextImage = tn - lastImage > timePerImage
             nextIMU = tn - lastIMU > timePerIMU
             nextPID = tn - lastPID > timePerPID
+            nextBG = tn - lastBG > timePerBG
+
+
 
             if showMarkers:
                 current_drone_pose = self.getPositionUAV()
@@ -194,6 +208,10 @@ class SimClient(AirSimInterface):
                 if nextPID:
                     self.c.addstr(6, 0, f"pid: {format(1. / float(tn - lastPID), '.4f')}hz")
 
+            if nextBG:
+                self.changeBackground()
+                lastBG = tn
+
             if nextIMU:
                 self.captureIMU()
                 lastIMU = tn
@@ -204,9 +222,10 @@ class SimClient(AirSimInterface):
                 self.client.simPause(True)
 
                 Bvel, Byaw = ctrl.getVelocityYaw()
+                Bvel = Bvel / velocity_limit
 
                 # save images of current frame
-                self.captureAndSaveImages(cwpindex, cimageindex, [*Bvel, Byaw])
+                self.captureAndSaveImages(cwpindex, cimageindex, [*Bvel, Byaw], WLastAirSimVel)
                 cimageindex += 1
 
                 # unpause simulation
@@ -235,11 +254,20 @@ class SimClient(AirSimInterface):
                 # get current pid output´
                 Bvel, Byaw = ctrl.getVelocityYaw()
 
+                print(f"magnitude: {magnitude(Bvel)}")
+                Bvel_percent = magnitude(Bvel) / velocity_limit
+                print(f"percent: {Bvel_percent * 100}")
+                # if magnitude of pid output is greater than velocity limit, scale pid output to velocity limit
+                if Bvel_percent > 1:
+                    Bvel = Bvel / Bvel_percent
+
                 # rotate velocity command such that it is in world coordinates
                 Wvel = vector_body_to_world(Bvel, [0, 0, 0], Wcstate[3])
 
                 # add pid output for yaw to current yaw position
                 Wyaw = degrees(Wcstate[3]) + Byaw
+
+                WLastAirSimVel = [*Wvel, Wyaw]
 
                 '''
                 Args:
@@ -266,7 +294,7 @@ class SimClient(AirSimInterface):
                 cwpindex = cwpindex + 1
                 lastWP = tn
             # end mission when no more waypoints available
-            if len(WpathComplete) <= (cwpindex + 1):
+            if len(WpathComplete) - 10 <= (cwpindex + 1):   # ignore last 80 waypoints
                 mission = False
         if showMarkers:
             # clear persistent markers
@@ -414,26 +442,31 @@ class SimClient(AirSimInterface):
     def toVector3r(self, wp):
         return airsim.Vector3r(wp[0], wp[1], wp[2])
 
+    def printGatePositions(self, count):
+
+        for i in range(count):
+            pos = self.getPositionGate(i + 1)
+            print(f"gate {i}: ")
+            self.printPose(pos)
+
 
 if __name__ == "__main__":
 
     import contextlib
 
-    configurations = []
-
-    with contextlib.closing(SimClient()) as sc:
+    with contextlib.closing(SimClient(configFilePath='config/config_dr_test.json')) as sc:
         # generate random gate configurations within bounds set in config.json
         sc.generateGateConfigurations()
         configurations = deepcopy(sc.gateConfigurations)
 
     for i, gateConfig in enumerate(configurations):
-        with contextlib.closing(SimClient(raceTrackName=f"track{i}")) as sc:
+        with contextlib.closing(SimClient(raceTrackName=f"track{i}", configFilePath='config/config_dr_test.json')) as sc:
             sc.gateConfigurations = [gateConfig]
 
             sc.loadNextGatePosition()
 
             # fly mission
-            sc.gateMission(False, True)
+            sc.gateMission(False, True, uav_position=sc.config.uav_position)
 
             sc.loadGatePositions(sc.config.gates['poses'])
             sc.reset()

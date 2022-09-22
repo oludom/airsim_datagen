@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from datagen.RaceTrackLoader import RaceTracksDataset
+from RaceTrackLoader import RaceTracksDataset
 
 import torch
 
@@ -17,8 +17,8 @@ device = 'cpu'
 
 dataset_basepath = "/media/micha/eSSD/datasets"
 # dataset_basepath = "/home/micha/dev/datasets/droneracing"
-# dataset_basepath = "/data/datasets"
-dataset_basename = "X4Gates_Circles"
+dataset_basepath = "/data/datasets/pid_testing"
+dataset_basename = "pid_evaluation"
 # dataset_basename = "X4Gates_Circle_1"
 # dataset_basename = "X4Gates_Circle_2"
 
