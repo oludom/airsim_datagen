@@ -20,7 +20,6 @@ from torch.utils.data import Dataset
 import torch.nn.functional as fn
 
 import util
-import numpy as np
 import pfm
 import orb
 
@@ -275,35 +274,6 @@ class RaceTracksDataset(Dataset):
 
         return image
 
-
-    '''
-    calculate velocity vector
-    x,y,z velocity = normalized mean of next n waypoints, moved to local frame
-    where n = localTrajectoryLength
-    forward left up (x, y, z)
-    '''
-
-    def waypointToVelocityVector(self, waypoints, pose, prevPose):
-        ret = torch.tensor(waypoints, dtype=torch.float32)
-        # remove timestamp
-        ret = ret[:, :4]
-        # move waypoints into local frame
-        posey = torch.tensor([pose[0], pose[1], pose[2], util.to_eularian_angles(*pose[3:7])[2]])
-        prevPosey = torch.tensor([prevPose[0], prevPose[1], prevPose[2], util.to_eularian_angles(*prevPose[3:7])[2]])
-        ret = ret - posey
-        # calculate unit vector from local waypoints
-        ret = torch.mean(ret, dim=0)
-        # calculate actual yaw change since last frame
-        yaw = posey[3] - prevPosey[3]
-        # if yaw request is too high then there was probably a jump to the next race track in the dataset
-        if -self.yawMaxCommand > yaw or yaw > self.yawMaxCommand:
-            yaw = 0
-        # normalize yaw
-        yaw *= 1. / float(self.yawMaxCommand)
-        ret = ret[:3]
-        ret = fn.normalize(ret, dim=0)
-        return torch.tensor([*ret, yaw])
-
     def exportRaceTracksAsTum(self):
         for el in self.rtLoaders:
             el.exportTrajectoriesAsTum()
@@ -313,21 +283,3 @@ class RaceTracksDataset(Dataset):
         for el in self.rtLoaders:
             ret += el.config.waypoints
         return ret
-
-    def getPoses(self, skip=0):
-        poses = []
-        velocities = []
-        for index in range(len(self.data)):
-            ts, waypoints, pose, imu, lipath = self.data[index]
-            if index > 0:
-                _, _, prevPose, _, _ = self.data[index - 1]
-            else:
-                prevPose = pose
-            vector = self.waypointToVelocityVector(waypoints, pose, prevPose)
-            poses.append(pose)
-            velocities.append(vector)
-
-        if skip <= 0:
-            return poses, velocities
-        else:
-            return poses[::skip], velocities[::skip]
