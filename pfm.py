@@ -4,10 +4,8 @@ copied from AirSim-1.7.0-linux source code
 '''
 
 import numpy as np
-import matplotlib.pyplot as plt
 import re
 import sys
-import pdb
 
 
 def read_pfm(file):
