@@ -322,6 +322,6 @@ if __name__ == "__main__":
 
         with contextlib.closing(NetworkTestClient(
                 f"/home/kristoffer/dev/orb_imitation/datagen/eval/runs/domain_randomization/ResNet8_ds=dr_pretrain_l={config.itypes}_f=0.5_bs=32_lt=MSE_lr=0.001_c=run0/epoch7.pth",
-                device=config.device, raceTrackName=track, configFilePath='config_dr_test.json')) as nc:
+                device=config.device, raceTrackName=track, configFilePath='config/config_dr_test.json')) as nc:
             # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
             nc.run(uav_position=nc.config.uav_position)
