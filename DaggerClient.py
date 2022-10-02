@@ -19,7 +19,7 @@ from copy import deepcopy
 
 import ResNet8 as resnet8
 import orb
-
+import cv2
 # import MAVeric polynomial trajectory planner
 import MAVeric.trajectory_planner as maveric
 
@@ -56,6 +56,7 @@ class DaggerClient(SimClient):
         self.expert_steps = int(50 * self.beta)
         self.agent_Steps = 50 - self.expert_steps
         self.actions = np.array(['expert', 'agent'])
+        self.border_with = 20
 
     def run(self, uav_position=None, showMarkers=False, velocity_limit=2.0):
 
@@ -378,7 +379,10 @@ class DaggerClient(SimClient):
         sample = None
         depth = None
         kp = None
-
+        
+        dim = (config.image_dim[1], config.image_dim[0])
+        image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
+        
         if withDepth:
             # format depth image
             depth = pfm.get_pfm_array(depthimage)  # [0] ignores scale
@@ -416,5 +420,21 @@ class DaggerClient(SimClient):
                 sample = torch.cat((sample, orbmask), 0)
             else:
                 sample = orbmask
-
+        if config.input_channels['sparse']:
+            orb_features_cache = [None]
+            kp, des, _, _, _ = orb.get_orb(image)
+            orb_features_cache = (kp, des)
+            # convert to torch tensor
+            image = transforms.Compose([
+                transforms.ToTensor(),
+            ])(image)
+            orbmask = torch.zeros_like(image[0], dtype=torch.bool)
+            for el in kp:
+                x, y = el.pt
+                y = min(max(int(y), self.border_with//2), image.shape[1]-self.border_with//2)
+                x = min(max(int(x), self.border_with//2), image.shape[2]-self.border_with//2)
+                # orb_box  = image[:, y-5:y+5, x-5:x+5]
+                orbmask[y-self.border_with//2:y+self.border_with//2, x-self.border_with//2:x+self.border_with//2] =1
+            image[:, ~orbmask] = 0
+            sample = image
         return sample
