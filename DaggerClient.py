@@ -1,3 +1,4 @@
+from fileinput import close
 import pfm
 
 from AirSimInterface import AirSimInterface
@@ -106,6 +107,9 @@ class DaggerClient(SimClient):
             "waypoints": WpathComplete
         }
         self.saveConfigToDataset(self.gateConfigurations[self.currentGateConfiguration], data)
+        if showMarkers:
+                            self.client.simPlotPoints(Wpath, color_rgba=[1.0, 0.0, 0.0, 1.0], size=10.0, duration=-1.0,
+                                                is_persistent=True)
 
         lastWP = time.time()
         lastImage = time.time()
@@ -130,8 +134,17 @@ class DaggerClient(SimClient):
         def angleDifference(a: float, b: float):
             return (a - b + 540) % 360 - 180
 
+        action = None
+        # start = time.time()
+        gate_index = 1
+        # controll loop
+        temp_index = 1
+        lastindex = 0
+        number_generateWP = 0
+        return_gate_index = 0
+        
         while mission:
-
+            
             # get and plot current waypoint (blue)
             wp = WpathComplete[cwpindex]
 
@@ -146,7 +159,7 @@ class DaggerClient(SimClient):
             nextIMU = tn - lastIMU > timePerIMU
             nextPID = tn - lastPID > timePerPID
             nextBG = tn - lastBG > timePerBG
-
+        
             if showMarkers:
                 current_drone_pose = self.getPositionUAV()
                 self.client.simPlotPoints(
@@ -176,11 +189,97 @@ class DaggerClient(SimClient):
             if nextIMU:
                 self.captureIMU()
                 lastIMU = tn
-
+            Passnew_WP = True
+            return_gate_index = 0
             if nextPID:
                 # get current state
                 Wcstate = self.getState()  # rad
+                # print('check_temp_index-1', temp_index)
+                # get index closes wp
+                prepause = time.time()
+                self.client.simPause(True)
+                closest_wp = self.getClosestWP2UAV(WpathComplete)
+                # print('check_closest_WP',closest_wp)
+                
+                if cwpindex > 0 and (cwpindex % self.config.waypoints_per_segment == 0):
+                    gate_index = temp_index + 1
+                    return_gate_index = 0
+                gate_temp = gate_index
+                # print('change gate index',gate_index
+                number_generateWP = gate_index * 50 - cwpindex
+                # print('number_generate_check case 1',number_generateWP)
 
+                if closest_wp > gate_index * self.config.waypoints_per_segment and closest_wp > cwpindex: 
+                    gate_index = gate_temp + 1
+                    number_generateWP = gate_index * 50 - cwpindex
+                    return_gate_index = 0
+                    print('Increase_gate_index')
+                    print('number_generate_check case 2',number_generateWP)
+                elif closest_wp < (gate_index -1) * self.config.waypoints_per_segment:
+                    return_gate_index = 1
+                    gate_index = gate_temp - return_gate_index
+                    print('hold-gate-index')
+                    number_generateWP = gate_index * 50 - closest_wp
+                    print('number_generate_check case 3',number_generateWP)
+                    Passnew_WP = False
+                # print('close_index',closest_wp)
+                # print('cwp_index',cwpindex)
+                # print('check gate_index',gate_index)
+                # print('check_temp_index-2', temp_index)
+                if cimageindex % 10 ==0:
+                    action = np.random.choice(self.actions, p=[self.beta, 1 - self.beta])
+                    
+                if action == "expert" and cimageindex % 50 == 0 and self.beta > 0.3:
+
+                        Ltimed_waypoints, Ltrajectory = self.generateTrajectoryToNextGatePositions(gate_index,timestep=1)
+
+                        Lpath, LpathComplete = self.convertTrajectoryToNextWaypoints(Ltimed_waypoints, Ltrajectory, number_generateWP,
+                                                                                evaltime=self.config.roundtime)
+
+                        if showMarkers:
+                            self.client.simPlotPoints(Lpath, color_rgba=[1.0, 0.0, 1.0, 1.0], size=10.0, duration=-1.0,
+                                                is_persistent=True)
+
+                        L = 0
+                        # print('check',cwpindex + (self.config.waypoints_per_segment / number_regenerate_per_segment))/
+                        if len(LpathComplete)  > number_generateWP + 6 and (cwpindex + number_generateWP) <= gate_index * self.config.waypoints_per_segment:
+                            for w in range(cwpindex, int(cwpindex + number_generateWP)):
+                                # print('Wwaypoint count',w)
+                                # print('LocalWP count', L)
+                                WpathComplete[w] = LpathComplete[L+5]
+                                L += 1
+
+                if action == "expert" and cimageindex % 20 == 0 and self.beta <= 0.3:
+
+                        # number_generateWP = gate_index * 50 - cwpindex
+
+                        # print("regenerate Waypoint")
+
+                        Ltimed_waypoints, Ltrajectory = self.generateTrajectoryToNextGatePositions(gate_index,timestep=1)
+
+                        Lpath, LpathComplete = self.convertTrajectoryToNextWaypoints(Ltimed_waypoints, Ltrajectory, number_generateWP,
+                                                                                evaltime=self.config.roundtime)
+
+                        if showMarkers:
+                            self.client.simPlotPoints(Lpath, color_rgba=[1.0, 0.0, 1.0, 1.0], size=10.0, duration=-1.0,
+                                                is_persistent=True)
+                        # print(f'cwpindex = {cwpindex}')
+                        L = 0
+                        # print('check',cwpindex + (self.config.waypoints_per_segment / number_regenerate_per_segment))/
+                        if len(LpathComplete)  > number_generateWP + 6 and (cwpindex + number_generateWP) <= gate_index * self.config.waypoints_per_segment :
+                            for w in range(cwpindex, int(cwpindex + number_generateWP)):
+                                # print('Wwaypoint count',w)
+                                # print('LocalWP count', L)
+                                WpathComplete[w] = LpathComplete[L+5]
+                                L += 1
+
+                self.client.simPause(False)
+                postpause = time.time()
+                pausedelta = prepause -postpause
+                lastWP += pausedelta
+                tn += pausedelta
+
+                wp = WpathComplete[cwpindex]       
                 # set goal state of pid controller
                 Bgoal = vector_world_to_body(wp[:3], Wcstate[:3], Wcstate[3])  # rad
                 # desired yaw angle is target point yaw angle world minus current uav yaw angle world 
@@ -203,8 +302,9 @@ class DaggerClient(SimClient):
 
                 cimageindex += 1
 
-                action = np.random.choice(self.actions, p=[self.beta, 1 - self.beta])
+                # print(action)                
                 if action == "agent":
+                    print(action)
                     images = torch.unsqueeze(sample, dim=0)
                     images = images.to(self.dev)
 
@@ -264,14 +364,41 @@ class DaggerClient(SimClient):
             # debug output
             if self.config.debug:
                 self.c.refresh()
-
+            # return gate_index 
+            if not Passnew_WP:
+                gate_index = gate_temp 
             # increase current waypoint index if time per waypoint passed and if there are more waypoints available in path
-            if nextWP and len(WpathComplete) > (cwpindex + 1):
+            if nextWP and len(WpathComplete) > (cwpindex + 1) and Passnew_WP:
+                print('current_wp', cwpindex)
+                temp_index = gate_index
                 cwpindex = cwpindex + 1
                 lastWP = tn
             # end mission when no more waypoints available
-            if len(WpathComplete) - 50 <= (cwpindex + 1):  # ignore last 80 waypoints
+            if len(WpathComplete) - 10 <= (cwpindex + 1):  # ignore last 80 waypoints
                 mission = False
+            # end = time.time()
+            # if end - start >= 1:
+            #     print(f'image_id={cimageindex}')
+            #     start=time.time()
+            
+    def MavericLocalPlaner(self, gate_index ,number_generateWP, WpathComplete,cwpindex,  showMarkers):
+        Ltimed_waypoints, Ltrajectory = self.generateTrajectoryToNextGatePositions(gate_index,timestep=1)
+
+        Lpath, LpathComplete = self.convertTrajectoryToNextWaypoints(Ltimed_waypoints, Ltrajectory, number_generateWP,
+                                                                evaltime=self.config.roundtime)
+
+        if showMarkers:
+            self.client.simPlotPoints(Lpath, color_rgba=[1.0, 0.0, 1.0, 1.0], size=10.0, duration=-1.0,
+                                is_persistent=True)
+                                
+        L = 0
+        # print('check',cwpindex + (self.config.waypoints_per_segment / number_regenerate_per_segment))/
+        if len(LpathComplete)  > number_generateWP + 6 and (cwpindex + number_generateWP) <= gate_index * self.config.waypoints_per_segment:
+            for w in range(cwpindex, int(cwpindex + number_generateWP)):
+                # print('Wwaypoint count',w)
+                # print('LocalWP count', L)
+                WpathComplete[w] = LpathComplete[L+5]
+                L += 1
 
     def loadWithAirsim(self, image, depthimage, withDepth=False):
 
