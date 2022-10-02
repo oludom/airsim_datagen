@@ -140,7 +140,7 @@ class RaceTracksDataset(Dataset):
     def __init__(self, dataset_basepath: str, dataset_basename: str, device='cpu',
                  yawMaxCommand=10, skipTracks=0, maxTracksLoaded=-1, imageScale=100, grayScale=True,
                  # imageScale in percent of original image size
-                 imageTransforms=None, loadRGB=True, loadDepth=False, loadOrb=False, orb_features=1000,
+                 imageTransforms=None, loadRGB=True, loadDepth=False, loadOrb=False, loadSparse=False,orb_features=1000, new_dim=(120, 160),
                                                                               *args, **kwargs
                  ):
 
@@ -160,7 +160,10 @@ class RaceTracksDataset(Dataset):
             if loadedTracks <= skipTracks:
                 continue
             trackname = Path(path).parts[-1]
-            self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, *args, **kwargs))
+            self.rtLoaders.append(RacetrackLoader(dataset_basepath, dataset_basename, trackname, 
+                *args, 
+                **kwargs
+            ))
 
         self.data = list(chain(*self.rtLoaders))
 
@@ -175,6 +178,9 @@ class RaceTracksDataset(Dataset):
         self.loadRGB = loadRGB
         self.loadD = loadDepth
         self.loadOrb = loadOrb
+        self.loadSparse = loadSparse
+        self.new_dim = new_dim
+        # if self.loadSparse: self.loadRGB = False
         self.orb = cv2.ORB_create(nfeatures=orb_features)
         self.orb_features_cache = [None for _ in range(len(self.data))]
 
@@ -182,6 +188,7 @@ class RaceTracksDataset(Dataset):
         _, _, _, _, lipath, dpath, velocity, Wvelocity = self.data[index]
         label = torch.tensor(velocity, dtype=torch.float32)
         sample = self.loadSample(lipath, index, dpath)
+        
         # move to device
         label = label.to(self.device)
         sample = sample.to(self.device)
@@ -194,9 +201,13 @@ class RaceTracksDataset(Dataset):
 
         sample = None
 
-        if self.loadRGB or self.loadOrb:
+        if self.loadRGB or self.loadOrb or self.loadSparse:
             image = cv2.imread(imagePath)
+            if self.new_dim is not None:
+                dim = self.new_dim[1], self.new_dim[0] 
+                image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
+                
         # load image
         if self.loadRGB:
             sample = self.loadImage(image)
@@ -215,6 +226,7 @@ class RaceTracksDataset(Dataset):
         if self.imageTransform:
             sample = self.imageTransform(sample)
 
+        # Modify here
         if self.loadOrb:
             orbmask = self.calculateOrbMask(image, index)
             if sample is not None:
@@ -222,7 +234,30 @@ class RaceTracksDataset(Dataset):
             else:
                 sample = orbmask
 
+        if self.loadSparse:
+            sample = self.calculateSparseRGB(image, index)
+
         return sample
+
+    def calculateSparseRGB(self, image, index, border_with=20):
+        if self.orb_features_cache[index] is None:
+            kp, des, _, _, _ = orb.get_orb(image)
+            self.orb_features_cache[index] = (kp, des)
+        else:
+            kp, des = self.orb_features_cache[index]
+        # convert to torch tensor
+        image = transforms.Compose([
+            transforms.ToTensor(),
+        ])(image)
+        orbmask = torch.zeros_like(image[0], dtype=torch.bool)
+        for el in kp:
+            x, y = el.pt
+            y = min(max(int(y), border_with//2), image.shape[1]-border_with//2)
+            x = min(max(int(x), border_with//2), image.shape[2]-border_with//2)
+            # orb_box  = image[:, y-5:y+5, x-5:x+5]
+            orbmask[y-border_with//2:y+border_with//2, x-border_with//2:x+border_with//2] =1
+        image[:, ~orbmask] = 0                
+        return image
 
     def calculateOrbMask(self, image, index):
 
@@ -258,6 +293,8 @@ class RaceTracksDataset(Dataset):
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         # scale down
+
+
         if not self.imageScale == 100:
             # not tested after recent changes
             scale_percent = self.imageScale  # percent of original size
@@ -266,7 +303,7 @@ class RaceTracksDataset(Dataset):
             dim = (width, height)
             # resize image
             image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
-
+        
         # convert to torch tensor
         image = transforms.Compose([
             transforms.ToTensor(),
