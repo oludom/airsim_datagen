@@ -12,6 +12,8 @@ COORDINATE SYSTEM:
 All AirSim API uses NED coordinate system, i.e., +X is North, +Y is East and +Z is Down. All units are in SI system. Please note that this is different from coordinate system used internally by Unreal Engine. In Unreal Engine, +Z is up instead of down and length unit is in centimeters instead of meters. AirSim APIs takes care of the appropriate conversions. The starting point of the vehicle is always coordinates (0, 0, 0) in NED system. Thus when converting from Unreal coordinates to NED, we first subtract the starting offset and then scale by 100 for cm to m conversion. The vehicle is spawned in Unreal environment where the Player Start component is placed. There is a setting called OriginGeopoint in settings.json which assigns geographic longitude, longitude and altitude to the Player Start component.
 '''
 
+from random import getstate
+from this import d
 import airsim
 import numpy as np
 import pprint
@@ -298,7 +300,6 @@ class AirSimInterface:
         }
         if self.createDataset:
             print(f"{json.dumps(entry, indent=1)},", file=self.outputFile)
-
             return img_rgb, depth
 
     def captureIMU(self):
@@ -323,6 +324,18 @@ class AirSimInterface:
         pos1 = deepcopy(position) + rot1
         pos2 = deepcopy(position) + rot2
         return (pos1, pos2)
+    
+    def getClosestWP2UAV(self, wp):
+        d_x, d_y , d_z, yaw = self.getState()
+        shortest_dist = 10000
+        closestWP_index = 0
+        for i ,p in enumerate(wp):
+            dist = sqrt((d_x - wp[i][0])**2  + (d_y - wp[i][1])**2 + (d_z -wp[i][2])**2)
+            if  dist < shortest_dist:
+                shortest_dist = dist
+                closestWP_index = i
+        
+        return closestWP_index
 
     # gets current position of gates and generates a trajectory through those points
     # if traj is true:
@@ -344,6 +357,7 @@ class AirSimInterface:
 
         # get current gate positions
         for i in range(1, len(self.config.gates['poses']) + 1):
+
             # get gate position
             gp = self.getPositionGate(i)
             # self.printPose(gp)
@@ -371,17 +385,71 @@ class AirSimInterface:
             return waypoints
 
             # this is a sampling function which
+    def generateTrajectoryToNextGatePositions(self, gate_index ,timestep=1, traj=True):
+
+        waypoints = []
+
+        # uav current position is first waypoint
+        uavpos = self.getPositionUAV()
+        orientation = self.getPositionAirsimUAV().orientation
+        # convert to xyz and yaw
+        _, _, yaw = airsim.to_eularian_angles(orientation)
+        uavwp = [uavpos[0], uavpos[1], uavpos[2], degrees(-yaw)]
+        # add waypoint
+        waypoints.append(uavwp)
+
+        # get current gate positions
+        # for i in range(1, len(self.config.gates['poses']) + 1):
+            # get gate position
+        
+        gp = self.getPositionGate(gate_index)
+        
+        # self.printPose(gp)
+        orientation = self.getPositionAirsimGate(gate_index).orientation
+        
+        # convert to xyz and yaw
+        _, _, yaw = airsim.to_eularian_angles(orientation)
+        wp1, wp2 = self.create2WaypointsOffset(gp[:3], -yaw, 2)
+        wp1 = [wp1[0], wp1[1], wp1[2], degrees(-yaw)]
+        wpg = [gp[0], gp[1], gp[2], degrees(-yaw)]
+        wp2 = [wp2[0], wp2[1], wp2[2], degrees(-yaw)]
+        waypoints.append(wpg)
+        if gate_index < len(self.config.gates['poses']):
+            gp2 = self.getPositionGate(gate_index + 1)
+            orientation2 = self.getPositionAirsimGate(gate_index + 1).orientation
+            _, _, yaw2 = airsim.to_eularian_angles(orientation2)
+            wpg2 = [gp2[0], gp2[1], gp2[2], degrees(-yaw2)]
+            waypoints.append(wpg2)
+        
+        # add waypoint
+        # waypoints.append(wp2)
+        
+        
+        # waypoints.append(wp1)
+
+        # add uavwp again - starting point as endpoint
+        # waypoints.append(uavwp)
+
+        if traj:
+            # call maveric to get trajectory
+            return maveric.planner(waypoints)  # timestep=timestep
+        else:
+            # return list of waypoints
+            return waypoints
 
     # converts waypoints, trajectory from generateTrajectoryFromCurrentGatePositions() to airsim.Vector3r list and [x,y,z,yaw,timestamp]
     # config.waypoints_per_segment waypoints will be generated for each segment of trajectory, where a segment is the polynomial between two waypoints (gates)
-    def convertTrajectoryToWaypoints(self, waypoints, trajectory, evaltime=10):
+    
+    def convertTrajectoryToNextWaypoints(self, waypoints, trajectory, number_regenerate_per_segment ,evaltime=10):
         out = []
         outComplete = []
-
+        gateWP = []
         # for each segment...
+        wp_togate= number_regenerate_per_segment 
         for i in range(len(trajectory)):
 
-            t = np.linspace(waypoints[i].time, waypoints[i + 1].time, self.config.waypoints_per_segment)
+            t = np.linspace(waypoints[i].time, waypoints[i + 1].time, wp_togate)
+            
             x_path = (trajectory[i][0] * t ** 4 + trajectory[i][1] * t ** 3 + trajectory[i][2] * t ** 2 + trajectory[i][
                 3] * t + trajectory[i][4])
             y_path = (trajectory[i][5] * t ** 4 + trajectory[i][6] * t ** 3 + trajectory[i][7] * t ** 2 + trajectory[i][
@@ -389,15 +457,50 @@ class AirSimInterface:
             z_path = (trajectory[i][10] * t ** 4 + trajectory[i][11] * t ** 3 + trajectory[i][12] * t ** 2 +
                       trajectory[i][13] * t + trajectory[i][14])
             yaw_path = (trajectory[i][15] * t ** 2 + trajectory[i][16] * t + trajectory[i][17])
-
+            
             # ... calculate position of each waypoint
             for j in range(len(t)):
+               
                 out.append(airsim.Vector3r(x_path[j], y_path[j], z_path[j]))
                 yaw = self.vectorToYaw(np.array([x_path[j], y_path[j], z_path[j]]) - np.array(
                     [waypoints[i + 1].x, waypoints[i + 1].y, waypoints[i + 1].z]))
+                if i >= 1:
+                    gateWP.append([x_path[0], y_path[0], z_path[0], yaw, t[0]])
+                    
                 outComplete.append([x_path[j], y_path[j], z_path[j], yaw, t[j]])  # yaw_path[j]
 
         return out, outComplete
+    
+    def convertTrajectoryToWaypoints(self, waypoints, trajectory, evaltime=10):
+        out = []
+        outComplete = []
+        gateWP = []
+        # for each segment...
+        for i in range(len(trajectory)):
+
+            t = np.linspace(waypoints[i].time, waypoints[i + 1].time, self.config.waypoints_per_segment)
+            
+            x_path = (trajectory[i][0] * t ** 4 + trajectory[i][1] * t ** 3 + trajectory[i][2] * t ** 2 + trajectory[i][
+                3] * t + trajectory[i][4])
+            y_path = (trajectory[i][5] * t ** 4 + trajectory[i][6] * t ** 3 + trajectory[i][7] * t ** 2 + trajectory[i][
+                8] * t + trajectory[i][9])
+            z_path = (trajectory[i][10] * t ** 4 + trajectory[i][11] * t ** 3 + trajectory[i][12] * t ** 2 +
+                      trajectory[i][13] * t + trajectory[i][14])
+            yaw_path = (trajectory[i][15] * t ** 2 + trajectory[i][16] * t + trajectory[i][17])
+            # print(x_path)
+            # ... calculate position of each waypoint
+            for j in range(len(t)):
+               
+                out.append(airsim.Vector3r(x_path[j], y_path[j], z_path[j]))
+                yaw = self.vectorToYaw(np.array([x_path[j], y_path[j], z_path[j]]) - np.array(
+                    [waypoints[i + 1].x, waypoints[i + 1].y, waypoints[i + 1].z]))
+                if i >= 1:
+                    gateWP.append([x_path[0], y_path[0], z_path[0], yaw, t[0]])
+                    # print(x_path[0])
+                outComplete.append([x_path[j], y_path[j], z_path[j], yaw, t[j]])  # yaw_path[j]
+
+        return out, outComplete
+
 
     def vectorToYaw(self, vec):
         return degrees(atan2(vec[1], vec[0])) - 180
@@ -439,7 +542,7 @@ class AirSimInterface:
 
     def changeBackgroundTest(self):
     
-        self.client.simSwapTextures("wall", 30)
+        self.client.simSwapTextures("wall", 31)
 
     def checkGateInView(self, segres):
         # responses = client.simGetImages([ImageRequest(0, AirSimImageType.Segmentation, False, False)])
