@@ -226,6 +226,7 @@ class DaggerClient(SimClient):
                 if cimageindex % 10 ==0:
                     action = np.random.choice(self.actions, p=[self.beta, 1 - self.beta])
                     
+                
                 if action == "expert" and cimageindex % 50 == 0 and self.beta > 0.3:
 
                         WpathComplete = self.MavericLocalPlaner(gate_index ,number_generateWP, WpathComplete,cwpindex,  showMarkers)
@@ -343,6 +344,16 @@ class DaggerClient(SimClient):
             #     print(f'image_id={cimageindex}')
             #     start=time.time()
     def MavericLocalPlaner(self, gate_index ,number_generateWP, WpathComplete,cwpindex,  showMarkers = False):
+        """ Local Planner with number of time use expert policy
+                Args : 
+                    gate_index : gate index frome 1 -> 6 ( in domain randomization setting)
+                    number_geberateWp: number of waypoint to generate to the next gate
+                    WpathComplete : Global path
+                    cwpindex: current waypoint index
+                Return:
+                    WpathComplete : return Local path added to the Global path
+                """
+        
         Ltimed_waypoints, Ltrajectory = self.generateTrajectoryToNextGatePositions(gate_index,timestep=1)
 
         Lpath, LpathComplete = self.convertTrajectoryToNextWaypoints(Ltimed_waypoints, Ltrajectory, number_generateWP,
