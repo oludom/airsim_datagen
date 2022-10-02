@@ -204,7 +204,7 @@ class RaceTracksDataset(Dataset):
         if self.loadRGB or self.loadOrb or self.loadSparse:
             image = cv2.imread(imagePath)
             if self.new_dim is not None:
-                dim = self.new_dim[1], self.new_dim[0] 
+                dim = self.new_dim[1], self.new_dim[0]
                 image = cv2.resize(image, dim, interpolation=cv2.INTER_AREA)
 
                 
