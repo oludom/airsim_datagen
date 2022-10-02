@@ -213,65 +213,27 @@ class DaggerClient(SimClient):
                     gate_index = gate_temp + 1
                     number_generateWP = gate_index * 50 - cwpindex
                     return_gate_index = 0
-                    print('Increase_gate_index')
-                    print('number_generate_check case 2',number_generateWP)
+                    # print('Increase_gate_index')
+                    # print('number_generate_check case 2',number_generateWP)
                 elif closest_wp < (gate_index -1) * self.config.waypoints_per_segment:
                     return_gate_index = 1
                     gate_index = gate_temp - return_gate_index
-                    print('hold-gate-index')
+                    # print('hold-gate-index')
                     number_generateWP = gate_index * 50 - closest_wp
-                    print('number_generate_check case 3',number_generateWP)
+                    # print('number_generate_check case 3',number_generateWP)
                     Passnew_WP = False
-                # print('close_index',closest_wp)
-                # print('cwp_index',cwpindex)
-                # print('check gate_index',gate_index)
-                # print('check_temp_index-2', temp_index)
+               
                 if cimageindex % 10 ==0:
                     action = np.random.choice(self.actions, p=[self.beta, 1 - self.beta])
                     
                 if action == "expert" and cimageindex % 50 == 0 and self.beta > 0.3:
 
-                        Ltimed_waypoints, Ltrajectory = self.generateTrajectoryToNextGatePositions(gate_index,timestep=1)
-
-                        Lpath, LpathComplete = self.convertTrajectoryToNextWaypoints(Ltimed_waypoints, Ltrajectory, number_generateWP,
-                                                                                evaltime=self.config.roundtime)
-
-                        if showMarkers:
-                            self.client.simPlotPoints(Lpath, color_rgba=[1.0, 0.0, 1.0, 1.0], size=10.0, duration=-1.0,
-                                                is_persistent=True)
-
-                        L = 0
-                        # print('check',cwpindex + (self.config.waypoints_per_segment / number_regenerate_per_segment))/
-                        if len(LpathComplete)  > number_generateWP + 6 and (cwpindex + number_generateWP) <= gate_index * self.config.waypoints_per_segment:
-                            for w in range(cwpindex, int(cwpindex + number_generateWP)):
-                                # print('Wwaypoint count',w)
-                                # print('LocalWP count', L)
-                                WpathComplete[w] = LpathComplete[L+5]
-                                L += 1
+                        WpathComplete = self.MavericLocalPlaner(gate_index ,number_generateWP, WpathComplete,cwpindex,  showMarkers)
 
                 if action == "expert" and cimageindex % 20 == 0 and self.beta <= 0.3:
 
-                        # number_generateWP = gate_index * 50 - cwpindex
-
-                        # print("regenerate Waypoint")
-
-                        Ltimed_waypoints, Ltrajectory = self.generateTrajectoryToNextGatePositions(gate_index,timestep=1)
-
-                        Lpath, LpathComplete = self.convertTrajectoryToNextWaypoints(Ltimed_waypoints, Ltrajectory, number_generateWP,
-                                                                                evaltime=self.config.roundtime)
-
-                        if showMarkers:
-                            self.client.simPlotPoints(Lpath, color_rgba=[1.0, 0.0, 1.0, 1.0], size=10.0, duration=-1.0,
-                                                is_persistent=True)
-                        # print(f'cwpindex = {cwpindex}')
-                        L = 0
-                        # print('check',cwpindex + (self.config.waypoints_per_segment / number_regenerate_per_segment))/
-                        if len(LpathComplete)  > number_generateWP + 6 and (cwpindex + number_generateWP) <= gate_index * self.config.waypoints_per_segment :
-                            for w in range(cwpindex, int(cwpindex + number_generateWP)):
-                                # print('Wwaypoint count',w)
-                                # print('LocalWP count', L)
-                                WpathComplete[w] = LpathComplete[L+5]
-                                L += 1
+                        WpathComplete = self.MavericLocalPlaner(gate_index ,number_generateWP, WpathComplete,cwpindex,  showMarkers)
+                        
 
                 self.client.simPause(False)
                 postpause = time.time()
@@ -380,8 +342,7 @@ class DaggerClient(SimClient):
             # if end - start >= 1:
             #     print(f'image_id={cimageindex}')
             #     start=time.time()
-            
-    def MavericLocalPlaner(self, gate_index ,number_generateWP, WpathComplete,cwpindex,  showMarkers):
+    def MavericLocalPlaner(self, gate_index ,number_generateWP, WpathComplete,cwpindex,  showMarkers = False):
         Ltimed_waypoints, Ltrajectory = self.generateTrajectoryToNextGatePositions(gate_index,timestep=1)
 
         Lpath, LpathComplete = self.convertTrajectoryToNextWaypoints(Ltimed_waypoints, Ltrajectory, number_generateWP,
@@ -399,6 +360,7 @@ class DaggerClient(SimClient):
                 # print('LocalWP count', L)
                 WpathComplete[w] = LpathComplete[L+5]
                 L += 1
+        return WpathComplete
 
     def loadWithAirsim(self, image, depthimage, withDepth=False):
 
