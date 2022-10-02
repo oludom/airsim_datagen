@@ -46,7 +46,7 @@ pd = lambda s, t: print(f"{t}: {now() - s}ms")
 
 class NetworkTestClient(SimClient):
 
-    def __init__(self, modelPath, raceTrackName="track0", device='cpu', *args, **kwargs):
+    def __init__(self, modelPath, raceTrackName="track90", device='cpu', *args, **kwargs):
 
         # init super class (AirSimController)
         super().__init__(raceTrackName=raceTrackName, createDataset=False, *args, **kwargs)
@@ -68,12 +68,12 @@ class NetworkTestClient(SimClient):
 
         # relead config file from dataset
         # configuration file
-        self.configFile = open(f'{dataset_basepath}/{dataset_basename}/{raceTrackName}/config.json', "r")
-
+        # self.configFile = open(f'{dataset_basepath}/{dataset_basename}/{raceTrackName}/config.json', "r")
+        self.configFile = open(f'/media/data2/teamICRA/src/micha_develop/orb_imitation/datagen/config_dr_test.json')
         self.config = {}
         self.loadConfig(self.configFile)
 
-        self.loadGatePositions(self.config.gates['poses'])
+        # self.loadGatePositions(self.config.gates['poses'])
 
         self.model = resnet8.ResNet8(input_dim=config.num_input_channels, output_dim=4, f=config.resnet_factor)
         if device == 'cuda':
@@ -109,7 +109,7 @@ class NetworkTestClient(SimClient):
         time.sleep(3)
 
         # set backgorund texture
-        self.changeBackgroundTest()
+        # self.changeBackgroundTest()
 
         lastImage = time.time()
 
@@ -170,23 +170,23 @@ class NetworkTestClient(SimClient):
                     mission_start += pausedelta
 
                     Bvel = pred[:3]
-
-                    # print(f"magnitude: {magnitude(Bvel)}")
+                    Byaw = pred[3]
+                    print(f"magnitude: {magnitude(Bvel)}")
                     Bvel_percent = magnitude(Bvel) / 2
                     # print(f"percent: {Bvel_percent*100}")
                     # if magnitude of pid output is greater than velocity limit, scale pid output to velocity limit
-                    # if Bvel_percent > 1:
-                    Bvel = Bvel / Bvel_percent
-                    Byaw = pred[3] / Bvel_percent
+                    if Bvel_percent > 1:
+                        Bvel = Bvel / Bvel_percent
+                        # Byaw = pred[3] / Bvel_percent
 
                     # print(f"y: {degrees(Byaw)}")
 
                     ypercent = abs(degrees(Byaw) / 10)
                     # print(f"ypercent: {ypercent}")
-                    if ypercent > 1:
-                        # print("limiting yaw") 
-                        Bvel = Bvel / ypercent
-                        Byaw = Byaw / ypercent
+                    # if ypercent > 1:
+                    #     # print("limiting yaw") 
+                    #     Bvel = Bvel / ypercent
+                    #     Byaw = Byaw / ypercent
 
                     # send control command to airsim
                     cstate = self.getState()
@@ -212,6 +212,7 @@ class NetworkTestClient(SimClient):
                         yaw_mode (YawMode, optional):
                         vehicle_name (str, optional): Name of the multirotor to send this command to
                     '''
+                    print(f'velocity : {Wvel}' )
                     self.client.moveByVelocityAsync(float(Wvel[0]), float(Wvel[1]), float(Wvel[2]),
                                                     duration=float(timePerImage), yaw_mode=airsim.YawMode(False, Wyaw))
                     
@@ -316,12 +317,24 @@ class NetworkTestClient(SimClient):
 if __name__ == "__main__":
     import contextlib
 
-    for i in range(10):
+    for r in range(10):
+        i = r + 86
         track = "track"+str(i)
         print(f"current track: {track}")
+        configurations = []
+        model = "/media/data2/teamICRA/src/micha_develop/orb_imitation/runs_dagger/ResNet8_ds=Newplanner_rgbo_rt=30_l=rgbo_f=0.5_bs=32_lt=MSE_lr=0.001_c=run0_newPlanner_rt=20_continue/round99.pth"
+        with contextlib.closing(NetworkTestClient(model,  device=config.device, raceTrackName=track, configFilePath='config_dr_test.json')) as nc:
+        # generate random gate configurations within bounds set in config.json
+            nc.generateGateConfigurations()
+            configurations = deepcopy(nc.gateConfigurations)
+        
+        for i, gateConfig in enumerate(configurations):
+            with contextlib.closing(NetworkTestClient(
+                    model,
+                    device=config.device, raceTrackName=track, configFilePath='config_dr_test.json')) as nc:
+                # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
+                nc.gateConfigurations = [gateConfig]
 
-        with contextlib.closing(NetworkTestClient(
-                f"/home/kristoffer/dev/orb_imitation/datagen/eval/runs/domain_randomization/ResNet8_ds=dr_pretrain_l={config.itypes}_f=0.5_bs=32_lt=MSE_lr=0.001_c=run0/epoch7.pth",
-                device=config.device, raceTrackName=track, configFilePath='config_dr_test.json')) as nc:
-            # nc.loadGatePositions([[5.055624961853027, -0.7640624642372131+4, -0.75, -90.0]])
-            nc.run(uav_position=nc.config.uav_position)
+                # load next gate arrangement 
+                nc.loadNextGatePosition()
+                nc.run(uav_position=nc.config.uav_position)
