@@ -4,11 +4,11 @@
     "imuRate": 400,
     "pidRate": 30,
     "backgroundChangeRate": 30,
-    "roundtime": 50,
-    "waypoints_per_segment": 100,
+    "roundtime": 30,
+    "waypoints_per_segment": 50,
     "gate_basename": "BP_AirLab2m1Gate",
-    "dataset_basename": "dagger_rgb",
-    "dataset_basepath": "/home/kristoffer/dev/dataset",
+    "dataset_basename": "GateNet_rt=30",
+    "dataset_basepath": "/media/data2/teamICRA/X4Gates_Circles_rl18tracks",
     "gates": {
         "poses": [
             [-12.0, 0.0, -3.0, -90.0],
@@ -22,11 +22,11 @@
         "range": {
             "x": [-0.5, 0.5],
             "y": [-1.0, 1.0],
-            "z": [-1.0, 1.0],
+            "z": [ -1.0, 1.0],
             "yaw": [-10, 10]
         },
         "grid_size": 5,
-        "number_configurations": 5
+        "number_configurations":110
     },
     "uav_position": [-20.0, 0.0, -3.0, -90.0]
 }
