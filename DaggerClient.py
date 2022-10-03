@@ -387,7 +387,7 @@ class DaggerClient(SimClient):
             # format depth image
             depth = pfm.get_pfm_array(depthimage)  # [0] ignores scale
 
-        if config.input_channels['orb']:
+        if config.input_channels['orb'] or config.input_channels['sparse']:
             kp, des, _, _, _ = orb.get_orb(image)
 
         # preprocess image
@@ -421,13 +421,6 @@ class DaggerClient(SimClient):
             else:
                 sample = orbmask
         if config.input_channels['sparse']:
-            orb_features_cache = [None]
-            kp, des, _, _, _ = orb.get_orb(image)
-            orb_features_cache = (kp, des)
-            # convert to torch tensor
-            image = transforms.Compose([
-                transforms.ToTensor(),
-            ])(image)
             orbmask = torch.zeros_like(image[0], dtype=torch.bool)
             for el in kp:
                 x, y = el.pt
