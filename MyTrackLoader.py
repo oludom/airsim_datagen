@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from curses import beep
 from re import X
 import sys
 from turtle import color, width
@@ -54,10 +55,10 @@ class RacetrackLoader:
         self.DATASET_PATH_DEPTH = self.DATASET_PATH + "/image_depth"
         
         # configuration file
-        # self.configFile = open(self.DATASET_PATH + "/config.json", "r")
+        self.configFile = open(self.DATASET_PATH + "/config.json", "r")
 
-        # self.config = {}
-        # self.loadConfig(self.configFile)
+        self.config = {}
+        self.loadConfig(self.configFile)
 
         # load list of items in data file
         with open(self.DATASET_PATH_FILE, "r") as dataFile:
@@ -78,24 +79,24 @@ class RacetrackLoader:
 
             # load other values
             ts = frame['time_stamp']
-            # waypoints = self.config.waypoints[
-            #             frame['waypoint_index']: frame['waypoint_index'] + self.localTrajectoryLength]
+            waypoints = self.config.waypoints[
+                        frame['waypoint_index']: frame['waypoint_index'] + self.localTrajectoryLength]
             pose = frame['pose']
             imu = frame['imu']
             vel = frame['body_velocity_yaw_pid']
 
             # yield ts, waypoints, pose, imu, lipath, vel
-            yield ts, pose, imu, lipath, vel
-    # def loadConfig(self, configFile):
-    #     class ConfigLoader:
-    #         def __init__(self, **data):
-    #             self.__dict__.update(data)
+            yield ts, waypoints, pose, imu, lipath, vel
+    def loadConfig(self, configFile):
+        class ConfigLoader:
+            def __init__(self, **data):
+                self.__dict__.update(data)
 
-    #     data = json.load(configFile)
-    #     self.config = ConfigLoader(**data)
+        data = json.load(configFile)
+        self.config = ConfigLoader(**data)
 
-    # def __del__(self):
-    #     self.configFile.close()
+    def __del__(self):
+        self.configFile.close()
 
     # export drone and ground truth trajectory in TUM file/data format
     def exportTrajectoriesAsTum(self):
@@ -190,19 +191,21 @@ class RaceTracksDataset(Dataset):
         self.grayScale = grayScale
         self.first = True
         self.max_v = None
-        self.find_max_velocities()
+        # self.find_max_velocities()
 
-    def find_max_velocities(self):
-        print("finding maximum absolute values of x,y,z,yaw velocities...")
-        velocities = np.zeros([len(self.data), 4]) 
-        for i, sample in enumerate(tqdm(self.data)):
-            _,_, _, lipath, velocity = sample
-            velocities[i, :] = velocity
-        self.max_v = torch.tensor(np.max(abs(velocities), axis=0), dtype=torch.float32)
-        print(f"Maximum velociies: {self.max_v}")
-        print(self.max_v.shape)
-        print("Done")
-    
+    # def find_max_velocities(self):
+    #     print("finding maximum absolute values of x,y,z,yaw velocities...")
+    #     velocities = np.zeros([len(self.data), 3])
+    #     # print(f'Velocities : {velocities}')
+    #     for i, sample in enumerate(tqdm(self.data)):
+    #         _,_,_, _, lipath, velocity = sample
+    #         bvel = velocity[:3]
+    #         velocities[i, :] = bvel
+    #     self.max_v = torch.tensor(np.max(abs(velocities), axis=0), dtype=torch.float32)
+    #     print(f"Maximum velociies: {self.max_v}")
+    #     print(self.max_v.shape)
+    #     print("Done")
+
     @staticmethod
     def to_eularian_angles(q):
         # z = q.z_val
@@ -238,7 +241,7 @@ class RaceTracksDataset(Dataset):
     def __getitem__(self, index):
         
         # (ts, waypoints, pose, imu, lipath, vel)
-        _, pose, _, lipath, velocity = self.data[index]
+        _,_, pose, _, lipath, velocity = self.data[index]
         scale = 1
 
         #convert body velocity and yaw difference to world frame
@@ -249,16 +252,27 @@ class RaceTracksDataset(Dataset):
         # wvel /= scale
         # wyaw /= scale
         # w_velocity = [*wvel, wyaw]
-        bvel[0] /= scale
-        bvel[1] /= scale
-        bvel[2] /= scale
-        byaw /= scale
-        b_velocity = [*bvel, byaw]
+        # bvel[0] /= scale
+        # bvel[1] /= scale
+        # bvel[2] /= scale
+        # byaw /= scale
+        # b_velocity = [*bvel, byaw]
+        
+        bvel = torch.tensor(bvel, dtype=torch.float32)
+        byaw = torch.tensor(byaw, dtype= torch.float32)
+        byaw = torch.unsqueeze( byaw, dim= 0)
+        # print(f'bvel {bvel}')
+        # print(f'byaw {byaw}')
+
+        # bvel /= self.max_v
+        label = torch.cat((bvel,byaw), dim=0)
+        # print(f'Yaw = {byaw}')
+        # print(f'label = {label}')
 
         # Convert to tensor
-        label = torch.tensor(b_velocity, dtype=torch.float32)
+        # label = torch.tensor(b_velocity, dtype=torch.float32)
         
-        label = label / self.max_v
+        # label = label / self.max_v
         # print(lipath)
         sample = self.loadImage(lipath)
 
@@ -290,7 +304,7 @@ class RaceTracksDataset(Dataset):
         image = transforms.Compose([
             transforms.ToTensor(),
         ])(image)
-
+        '''find mean and deviation'''
         # apply transforms
         if self.imageTransform:
             image = self.imageTransform(image)
@@ -456,34 +470,39 @@ class RecurrentRaceTrackDataset(RaceTracksDataset):
         self.grayScale = grayScale
         self.first = True
         self.max_v = None
-        self.find_max_velocities()
-    def find_max_velocities(self):
-        print("finding maximum absolute values of x,y,z,yaw velocities...")
-        velo =np.zeros([len(self.data), 4])
-        for i, sample in enumerate(tqdm(self.data)):
-            _, _, _, _, lipath, velocity = sample
-            velocities = np.zeros([len(velocity), 4])
-            for index in range(len(velocity)):
-                velocities[index, :] = velocity[index]
-                # velocities = velocity[index]
-                # print(velocities.shape)
-                velo[i,: ] = velocities[index]
+        # self.find_max_velocities()
+    # def find_max_velocities(self):
+    #     print("finding maximum absolute values of x,y,z,yaw velocities...")
+    #     velo =np.zeros([len(self.data), 4])
+    #     for i, sample in enumerate(tqdm(self.data)):
+    #         _, _, _, _, lipath, velocity = sample
+    #         Bvel = velocity[:3]
+    #         print(Bvel)
+    #         velocities = np.zeros([len(velocity), 3])
+    #         print(velocities.shape)
+    #         for index in range(len(velocity)):
+    #             velocities[index, :] = Bvel[index]
+    #             # velocities = velocity[index]
+    #             # print(velocities.shape)
+    #             velo[i,: ] = velocities[index]
 
-        self.max_v = torch.tensor(np.max(abs(velo), axis=0), dtype=torch.float32)
-        # print(velocities)
-        print(f"Maximum velociies: {self.max_v}")
-        # print(self.max_v.shape)
-        print("Done")
+    #     self.max_v = torch.tensor(np.max(abs(velo), axis=0), dtype=torch.float32)
+    #     # print(velocities)
+    #     print(f"Maximum velociies: {self.max_v}")
+    #     # print(self.max_v.shape)
+    #     print("Done")
 
     def __getitem__(self, index):
         label = []
         sample = []
-        lipaths = self.data[index][-2]
+        # lipaths = self.data[index][-2]
         # (ts, waypoints, pose, imu, lipath, vel)
-        _, _, pose, _, lipath, velocity = self.data[index]
+        _, _, pose, _, lipaths, velocity = self.data[index]
         # label = label / self.max_v
 
         for i, lipath in enumerate(lipaths):
+            print(lipath)
+            print(lipaths[i])
             sample.append(self.loadImage(lipath).unsqueeze(0))
              #convert body velocity and yaw difference to world frame
             # rots = self.to_eularian_angles(pose[i][3:]) # pitch roll yaw (in radians)
@@ -492,18 +511,26 @@ class RecurrentRaceTrackDataset(RaceTracksDataset):
             # wyaw = rots[2] + byaw  # wyaw is in radians
             # w_velocity = [*wvel, wyaw]
             # Convert to tensor
-            b_velocity = [*bvel, byaw]
+            b_velocity = velocity[i]
+            # b_velocity = [*bvel, byaw]
 
             labels = torch.tensor(b_velocity, dtype=torch.float32)
             # print(labels)
-            labels /= self.max_v
+            # labels /= self.max_v
+
+            # bvel = torch.tensor(bvel, dtype=torch.float32)
+            # byaw = torch.tensor(byaw, dtype= torch.float32)
+            # bvel /= self.max_v
+
+            # labels = torch.cat(, dim=0)
+            print(labels)
             label.append(labels.unsqueeze(0))
             
             # label.append(torch.tensor(b_velocity, dtype=torch.float32)unsqueeze(0))
         
         # print(label)
         sample = torch.cat(sample, axis=0)
-        label = torch.cat(label, axis=0)  
+        label = torch.cat(label, axis=0)
 
         ################ Old loader #####################
         # label = torch.tensor(self.data[index][-1], dtype=torch.float32)
@@ -517,55 +544,55 @@ class RecurrentRaceTrackDataset(RaceTracksDataset):
 
         return sample, label
 
-# if __name__ == "__main__":
-#     dataset_basepath ='/media/data2/teamICRA/X4Gates_Circles_rl18tracks'
-#     dataset_basename = 'check'
-#     epochs = 100
-#     batch_size = 32
-#     # train_tracks = [0]
-#     train_tracks = 180
-#     device = 'cuda'
-#     skipFirstXImages = 3
-#     skipLastXImages = 0
-#     # val_tracks = [8,3]
-#     dataset = RecurrentRaceTrackDataset(
-#                         dataset_basepath,
-#                         dataset_basename,
-#                         device=device,
-#                         maxTracksLoaded=train_tracks,
-#                         imageScale=100,
-#                         skipTracks=0,
-#                         grayScale=False,
-#                         skipFirstXImages=skipFirstXImages,
-#                         skipLastXImages=skipLastXImages,
-#                         tracknames=train_tracks
-#                     )
-#     datasetloader = torch.utils.data.DataLoader(
-#             dataset,
-#             batch_size=batch_size,
-#             shuffle=False,
-#         )
+if __name__ == "__main__":
+    dataset_basepath ='/media/data2/teamICRA/X4Gates_Circles_rl18tracks'
+    dataset_basename = 'X1Gate43'
+    epochs = 100
+    batch_size = 32
+    # train_tracks = [0]
+    train_tracks = 180
+    device = 'cuda'
+    skipFirstXImages = 3
+    skipLastXImages = 0
+    # val_tracks = [8,3]
+    dataset = RecurrentRaceTrackDataset(
+                        dataset_basepath,
+                        dataset_basename,
+                        device=device,
+                        maxTracksLoaded=train_tracks,
+                        imageScale=100,
+                        skipTracks=0,
+                        grayScale=False,
+                        skipFirstXImages=skipFirstXImages,
+                        skipLastXImages=skipLastXImages,
+                        tracknames=train_tracks
+                    )
+    datasetloader = torch.utils.data.DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=False,
+        )
     
-#     # log_df = pd.DataFrame({
-#     #     'x': [],
-#     #     'y': [],
-#     #     'z': [],
-#     #     'yaw': []
-#     # })
-#     log_df = []
-#     for s, l in datasetloader:
-#         l_np = l.numpy()
-#         # print(s)
-#         df = pd.DataFrame(l_np)
-#         log_df.append(df)
-#         # print(l)
-#         # print(type(log_df))
-#         # np_arr = numpy.asarray(log_df)
-#         # log_df = pd.DataFrame(np_arr)
+    # log_df = pd.DataFrame({
+    #     'x': [],
+    #     'y': [],
+    #     'z': [],
+    #     'yaw': []
+    # })
+    log_df = []
+    for s, l in datasetloader:
+        l_np = l.numpy()
+        # print(s)
+        df = pd.DataFrame(l_np)
+        log_df.append(df)
+        # print(l)
+        # print(type(log_df))
+        # np_arr = numpy.asarray(log_df)
+        # log_df = pd.DataFrame(np_arr)
         
-#         # print(log_df)
-#     log_df = pd.concat(log_df)
-#     log_df.to_csv("/media/data2/teamICRA/X4Gates_Circles_rl18tracks/test_set/log_body.csv", index= None)
+        # print(log_df)
+    # log_df = pd.concat(log_df)
+    # log_df.to_csv("/media/data2/teamICRA/X4Gates_Circles_rl18tracks/test_set/log_body.csv", index= None)
     
 
 
